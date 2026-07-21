@@ -391,8 +391,9 @@ function rulesHtml(){ const s = S.settings;
   return `
   <div class="card"><h3>🎯 Le but du jeu</h3><p class="hint" style="font-size:14px;color:var(--txt)">
   49 balises sont réparties dans le bois des Vouillants. Chaque équipe, encadrée par son coach, doit en photographier un maximum et revenir dans les temps. L'équipe avec le plus de points gagne l'étape du jour.</p></div>
-  <div class="card"><h3>📸 La règle d'or</h3><p class="hint" style="font-size:14px;color:var(--txt)">
-  Une photo ne compte que si <b>TOUT le groupe</b> est dessus, devant la balise. Le coach photographie (il est donc le seul absent de la photo). Un joueur qui manque = photo refusée. Le groupe est <b>indivisible</b> : on se déplace ensemble, tout le temps.</p></div>
+  <div class="card"><h3>🤝 La règle d'or : on ne se sépare JAMAIS</h3><p class="hint" style="font-size:14px;color:var(--txt)">
+  L'équipe avance groupée, <b>tout le monde se voit en permanence</b>. Conseil d'organisation : désignez un <b>OUVREUR</b> (devant, personne ne le dépasse) et un <b>SERRE-FILE</b> (derrière, responsable de n'avoir JAMAIS personne derrière lui) — faites tourner les rôles.<br>
+  Une photo ne compte que si <b>TOUT le groupe</b> est dessus, devant la balise (le coach photographie, il est donc le seul absent). Un joueur qui manque = photo refusée. Équipe aperçue éclatée = avertissement, puis pénalité de points par Dam.</p></div>
   <div class="card"><h3>🔢 Les points</h3><p class="hint" style="font-size:14px;color:var(--txt)">
   🔴 Balise rouge = <b>3 pts</b> (8 balises, les plus dures) · 🟢 verte = <b>2 pts</b> (16) · ⚫ noire = <b>1 pt</b> (25).<br>
   ⚡ <b>Premier passage</b> : la première équipe dont la photo est validée sur une balise marque <b>le double</b>. L'heure de la photo fait foi.<br>
@@ -403,15 +404,23 @@ function rulesHtml(){ const s = S.settings;
   🏁 <b>Maximum ${fmtH(maxT)}</b> : au-delà, <b>−${s.latePenaltyPerMin||1} pt par minute entamée</b> (plafonné à −${s.latePenaltyCap||15}).<br>
   💡 Conseil : utilisez TOUT le temps disponible — chaque minute entre ${fmtH(minT)} et ${fmtH(maxT)} est une minute pour marquer des points.${bonus?`<br>🏅 Bonus d'arrivée selon l'ordre de retour : ${bonus} pts.`:''}</p></div>
   <div class="card"><h3>🃏 Le Mistigri</h3><p class="hint" style="font-size:14px;color:var(--txt)">
-  Une équipe le reçoit au départ. Celle qui l'a encore à l'arrivée perd <b>${s.mistigriPenalty!==undefined?s.mistigriPenalty:10} points</b>. Il se refile uniquement <b>en main propre</b> à une équipe croisée — interdit de le cacher ou de l'abandonner. La chasse est autorisée… mais pendant qu'on chasse, on ne ramasse pas de balises.</p></div>
+  Une équipe le reçoit au départ. Celle qui l'a encore à l'arrivée perd <b>${s.mistigriPenalty!==undefined?s.mistigriPenalty:10} points</b>.<br>
+  <b>Passation :</b> on le remet <b>en main propre</b> à un joueur d'une équipe croisée — dès qu'il <b>touche</b> le mistigri, il est transmis, <b>pas de refus possible</b>. Interdit de le lancer, de le poser ou de le cacher. La passation se fait en marchant : pas de course-poursuite, jamais en descente.<br>
+  <b>Anti retour-à-l'envoyeur :</b> l'équipe qui vient de le recevoir ne peut pas le repasser à la même équipe pendant <b>10 minutes</b>. La chasse est autorisée… mais pendant qu'on chasse, on ne ramasse pas de balises.</p></div>
   <div class="card"><h3>⭐ Les Shérifs</h3><p class="hint" style="font-size:14px;color:var(--txt)">
-  Deux étoiles de shérif sont planquées quelque part sur le parcours. L'équipe qui en trouve une peut <b>arrêter UNE équipe croisée pendant 5 minutes</b> (gainage ou squats, pendant que son chrono tourne). Usage unique — l'étoile revient à Dam à l'arrivée.</p></div>
+  Deux étoiles de shérif sont planquées quelque part sur le parcours. L'équipe qui en trouve une peut <b>arrêter UNE équipe croisée pendant 5 minutes</b> (gainage ou squats, pendant que son chrono tourne).<br>
+  <b>Utilisation : pas besoin de toucher.</b> À portée de vue (~20 m max), on <b>brandit l'étoile</b> et on crie <b>« SHÉRIF ! »</b> en désignant l'équipe visée — son coach lance aussitôt les 5 minutes sur son téléphone. Trop loin pour être entendu = raté, on ne poursuit pas. <b>Une étoile = un seul flag</b>, puis elle revient à Dam à l'arrivée.</p></div>
   <div class="card"><h3>🎨 Bonus artistique</h3><p class="hint" style="font-size:14px;color:var(--txt)">
   À l'arrivée, l'équipe qui a produit les plus belles photos de la course reçoit un bonus. Soignez vos poses — le jury (Dam) est incorruptible.</p></div>
   <div class="card"><h3>🧹 La Brigade verte</h3><p class="hint" style="font-size:14px;color:var(--txt)">
   La dernière équipe du classement nettoie le site et range le matériel. On laisse la montagne plus propre qu'on l'a trouvée.</p></div>
-  <div class="card"><h3>🛟 Sécurité</h3><p class="hint" style="font-size:14px;color:var(--txt)">
-  On reste sur les sentiers, le coach ferme la marche, pas de sprint en descente. Eau + casquette pour tous. Bouton 🆘 SOS dans l'appli en cas de pépin (+ appel direct à Dam). Les décisions de Dam sont définitives — comme dans Pékin Express, la production a toujours raison. 🎙️</p></div>`;
+  <div class="card"><h3>🛟 Sécurité — non négociable</h3><p class="hint" style="font-size:14px;color:var(--txt)">
+  🗺️ On ne sort <b>pas de la zone de la carte</b>.<br>
+  ⛔ On respecte <b>toutes les interdictions</b> : panneaux sur le terrain et zones <b>hachurées en rouge</b> sur la carte.<br>
+  🌸 On ne cueille <b>pas de fleurs</b> — c'est interdit en montagne.<br>
+  🪨 On ne jette <b>aucun caillou</b> : on ne sait jamais où il finit, et il y a des sentiers partout en contrebas.<br>
+  🏃 Pas de sprint en descente — une balise ne vaut pas une entorse. Eau + casquette pour tous.<br>
+  🆘 En cas de pépin : bouton SOS dans l'appli + appel direct à Dam. Les décisions de Dam sont définitives — comme dans Pékin Express, la production a toujours raison. 🎙️</p></div>`;
 }
 function rulesModal(){ if(!rulesMode) return '';
   return `<div class="modal"><div class="row"><h2 class="grow">📖 Règles du jeu</h2>

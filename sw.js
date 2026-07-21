@@ -1,4 +1,4 @@
-const VERSION = 'vx-v5';
+const VERSION = 'vx-v6';
 const SHELL = ['./', 'index.html', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png', 'carte.jpg'];
 
 self.addEventListener('install', e => {
