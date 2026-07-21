@@ -150,7 +150,7 @@ async function addEvent(type, fields){
 
 function derive(){
   const evs = [...EVENTS.values()].sort((a,b)=> a.client_ts < b.client_ts ? -1 : 1);
-  const st = { teams: DEFAULT_TEAMS, settings: { pin: ORG_PIN_DEFAULT, deadlineMin: 150, latePenaltyPerMin: 1, latePenaltyCap: 15, arrivalBonus: '', showLb: true, mistigriPenalty: 10 }, starts:{}, finishes:{}, subs:[], vals:{}, adjusts:[], mistigri:{holder:null, hist:[]}, sherif:{counts:{}, log:[]}, lastPos:{}, sos:[], sosAck:new Set() };
+  const st = { teams: DEFAULT_TEAMS, settings: { pin: ORG_PIN_DEFAULT, deadlineMin: 150, latePenaltyPerMin: 1, latePenaltyCap: 15, arrivalBonus: '', showLb: true, mistigriPenalty: 10 }, starts:{}, finishes:{}, subs:[], vals:{}, adjusts:[], mistigri:{holder:null, hist:[]}, sherif:{counts:{}, log:[]}, lastPos:{}, tracks:{}, sos:[], sosAck:new Set() };
   const shc = id=>{ if(!st.sherif.counts[id]) st.sherif.counts[id]={found:0,used:0}; return st.sherif.counts[id]; };
   for(const e of evs){
     if(e.type==='config_teams') st.teams = e.payload.teams;
@@ -165,7 +165,7 @@ function derive(){
     else if(e.type==='sherif_found'){ shc(e.team_id).found++; st.sherif.log.push(e); }
     else if(e.type==='sherif_use'){ shc(e.team_id).used++; st.sherif.log.push(e); }
     else if(e.type==='sherif_hit'){ st.sherif.log.push(e); }
-    else if(e.type==='pos'){ if(e.team_id) st.lastPos[e.team_id]=e; }
+    else if(e.type==='pos'){ if(e.team_id){ st.lastPos[e.team_id]=e; (st.tracks[e.team_id]=st.tracks[e.team_id]||[]).push(e); } }
     else if(e.type==='sos'){ st.sos.push(e); }
     else if(e.type==='sos_ack'){ st.sosAck.add(e.payload.sosId); }
   }
@@ -501,6 +501,7 @@ function renderOrg(){
   app.innerHTML = topbar(`<div class="tabs">${tabs.map(([k,l])=>`<button class="${orgTab===k?'active':''}" onclick="setTab('${k}')">${l}${k==='val'&&pendCount?' ('+pendCount+')':''}</button>`).join('')}</div>`)
     + sosBanner
     + (orgTab==='go'?orgGo():orgTab==='val'?orgVal():orgTab==='lb'?orgLb():orgTab==='teams'?orgTeams():orgSet())
+    + traceModal() + podiumModal()
     + `<button class="bigbtn secondary" onclick="sync()">🔄 Forcer la synchro</button><button class="bigbtn secondary" onclick="logout()">↩︎ Écran d'accueil</button>`;
   if(orgTab==='val') hydrateValImgs();
 }
@@ -517,7 +518,8 @@ function orgGo(){
     ${!st?`<button class="gobtn" onclick="go('${t.id}')">GO !</button>`
       : !fin?`<button class="finbtn" onclick="finish('${t.id}')">🏁 Arrivée</button>`
       : `<button class="finbtn" onclick="unfinish('${t.id}')">annuler 🏁</button>`}
-    ${st&&!fin?`<button class="finbtn" onclick="ungo('${t.id}')">✕</button>`:''}</div>`; }).join('')
+    ${st&&!fin?`<button class="finbtn" onclick="ungo('${t.id}')">✕</button>`:''}
+    ${S.tracks[t.id]?`<button class="finbtn" onclick="traceFor('${t.id}')">📍</button>`:''}</div>`; }).join('')
   + `</div><p class="hint mt">GO horodate le départ de l'équipe — le chrono de son coach démarre à la synchro (ou via son bouton de secours). ✕ annule un départ raté.</p></div>`;
 }
 window.go = id=>{ addEvent('start',{team_id:id, payload:{by:'org'}}); };
@@ -558,8 +560,33 @@ async function hydrateValImgs(){
   }
 }
 
+/* ---- Trace GPS ---- */
+let traceTeam = null;
+window.traceFor = id=>{ traceTeam=id; render(); };
+function traceModal(){ if(!traceTeam) return ''; const t = team(traceTeam);
+  const pts = (S.tracks[traceTeam]||[]).slice().reverse();
+  return `<div class="modal"><div class="row"><h2 class="grow">📍 Trace — ${esc(t.name)}</h2>
+  <button class="badge mut" style="border:none;font-size:16px" onclick="traceTeam=null;render()">✕ fermer</button></div>
+  <p class="hint">${pts.length} position(s) reçue(s) (~1 toutes les 2 min 30 quand le GPS du coach répond ; remontées à chaque synchro). La plus récente en premier.</p>
+  <div class="log">${pts.map(e=>`<div>${fmtTime(e.client_ts)} — <a style="color:var(--orange)" href="${mapsLink(e.payload)}" target="_blank">voir sur Maps</a> (±${e.payload.acc} m)</div>`).join('')||'<div>Aucune position pour cette équipe (permission GPS refusée sur le téléphone du coach ? pas encore synchronisé ?)</div>'}</div></div>`; }
+/* ---- Podium final ---- */
+let podiumMode = false;
+function podiumModal(){ if(!podiumMode) return '';
+  const n = S.ranking.length;
+  return `<div class="modal"><div class="row"><h1 class="grow center" style="font-size:26px">🏆 CLASSEMENT FINAL</h1>
+  <button class="badge mut" style="border:none;font-size:16px" onclick="podiumMode=false;render()">✕</button></div>
+  ${S.ranking.map((t,i)=>{ const sc=S.scores[t.id]; const st=S.starts[t.id], fin=S.finishes[t.id];
+    const chr = st&&fin ? fmtDur(new Date(fin.client_ts)-new Date(st.client_ts)) : '—';
+    const last = i===n-1;
+    return `<div class="card" style="${i===0?'border:2px solid var(--orange);':''}${last?'border:2px solid var(--green);':''}">
+    <div class="row"><span style="font-size:28px">${['🥇','🥈','🥉'][i]||'<b>'+(i+1)+'ᵉ</b>'}</span>
+    <span class="teamdot" style="background:${t.color}"></span><b class="grow" style="font-size:18px">${esc(t.name)}${S.mistigri.holder===t.id?' 🃏':''}</b>
+    <span style="font-size:24px;font-weight:900">${sc.total} pts</span></div>
+    <div class="hint">${sc.validated.size} balises = ${sc.base} pts · doubles +${sc.doubles}${sc.arrival?' · arrivée +'+sc.arrival:''}${sc.adjust?' · ajust. '+(sc.adjust>0?'+':'')+sc.adjust:''}${sc.mistigri?' · mistigri '+sc.mistigri:''}${sc.late?' · retard '+sc.late:''} · chrono ${chr}${last?' · <b style="color:var(--green)">BRIGADE VERTE 🧹 (nettoyage + rangement)</b>':''}</div></div>`; }).join('')}
+  <p class="hint center">Montre cet écran aux équipes — ou lis-le façon Rotenberg, suspense inclus. 🎙️</p></div>`; }
 function orgLb(){
-  return `<div class="card"><h3>Classement</h3><table class="lb">
+  return `<div class="card"><button class="bigbtn" onclick="podiumMode=true;render()">🏆 Afficher le podium final (plein écran)</button></div>
+  <div class="card"><h3>Classement</h3><table class="lb">
   <tr><th></th><th>Équipe</th><th>Balises</th><th>×2</th><th>Ajust.</th><th>Arriv.</th><th>Retard</th><th style="text-align:right">Total</th></tr>
   ${S.ranking.map((t,i)=>{ const sc=S.scores[t.id];
     return `<tr><td>${['🥇','🥈','🥉'][i]||i+1+'.'}</td><td><span class="teamdot" style="background:${t.color}"></span>${esc(t.name)}${S.mistigri.holder===t.id?' 🃏':''}<br><span class="hint">${sc.validated.size} balises · ${sc.pending} en attente</span></td>
@@ -586,11 +613,18 @@ function orgLb(){
     <label>Points (ex : 5 ou -10)</label><input id="adjPts" type="number" inputmode="numeric">
     <label>Motif</label><input id="adjWhy" placeholder="drapeau noir, bonus arrivée, litige…">
     <button class="bigbtn mt" onclick="doAdjust()">Appliquer</button>
-    <div class="log mt">${S.adjusts.map(a=>`<div>${esc(team(a.team_id).name)} : ${a.payload.points>0?'+':''}${a.payload.points} — ${esc(a.payload.reason||'')}</div>`).join('')}</div></div>`;
+    <div class="log mt">${S.adjusts.map(a=>`<div>${esc(team(a.team_id).name)} : ${a.payload.points>0?'+':''}${a.payload.points} — ${esc(a.payload.reason||'')}</div>`).join('')}</div></div>
+  <div class="card"><h3>🎨 Bonus artistique</h3>
+    <p class="hint">Pour l'équipe qui a fait les plus belles photos de la course — à attribuer à l'arrivée, après revue des photos dans Validation.</p>
+    <div class="row"><select id="artTeam" class="grow">${S.teams.map(t=>`<option value="${t.id}">${esc(t.name)}</option>`).join('')}</select>
+    <input id="artPts" type="number" value="3" style="width:80px"></div>
+    <button class="bigbtn secondary mt" onclick="doArt()">🎨 Attribuer le bonus artistique</button></div>`;
 }
 window.doAdjust = ()=>{ const pts = parseInt(document.getElementById('adjPts').value); if(isNaN(pts)) return alert('Points ?');
   addEvent('adjust',{team_id:document.getElementById('adjTeam').value, payload:{points:pts, reason:document.getElementById('adjWhy').value, by:'org'}}); };
 window.setMistigri = ()=>{ addEvent('mistigri_set',{payload:{holder: document.getElementById('mgTeam').value || null, by:'org'}}); };
+window.doArt = ()=>{ const pts = parseInt(document.getElementById('artPts').value)||3;
+  addEvent('adjust',{team_id: document.getElementById('artTeam').value, payload:{points:pts, reason:'Bonus artistique 📸', by:'org'}}); alert('Bonus artistique attribué ! 🎨'); };
 
 function orgTeams(){
   return `<div class="card"><h3>Équipes (${S.teams.length})</h3>
