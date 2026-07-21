@@ -150,7 +150,7 @@ async function addEvent(type, fields){
 
 function derive(){
   const evs = [...EVENTS.values()].sort((a,b)=> a.client_ts < b.client_ts ? -1 : 1);
-  const st = { teams: DEFAULT_TEAMS, settings: { pin: ORG_PIN_DEFAULT, deadlineMin: 150, latePenaltyPerMin: 1, latePenaltyCap: 15, arrivalBonus: '', showLb: true, mistigriPenalty: 10 }, starts:{}, finishes:{}, subs:[], vals:{}, adjusts:[], mistigri:{holder:null, hist:[]}, sherif:{counts:{}, log:[]}, lastPos:{}, tracks:{}, sos:[], sosAck:new Set() };
+  const st = { teams: DEFAULT_TEAMS, settings: { pin: ORG_PIN_DEFAULT, deadlineMin: 150, minTimeMin: 120, latePenaltyPerMin: 1, latePenaltyCap: 15, arrivalBonus: '', showLb: true, mistigriPenalty: 10 }, starts:{}, finishes:{}, subs:[], vals:{}, adjusts:[], mistigri:{holder:null, hist:[]}, sherif:{counts:{}, log:[]}, lastPos:{}, tracks:{}, sos:[], sosAck:new Set() };
   const shc = id=>{ if(!st.sherif.counts[id]) st.sherif.counts[id]={found:0,used:0}; return st.sherif.counts[id]; };
   for(const e of evs){
     if(e.type==='config_teams') st.teams = e.payload.teams;
@@ -347,7 +347,7 @@ function renderCoach(){
     <div class="center hint">${start? (fin?'🏁 Arrivée validée':'Départ '+fmtTime(start.client_ts)) : 'En attente du départ…'}</div>
     <div class="center mt" id="deadline" style="font-weight:800;font-size:15px"></div>
     ${!start?`<button class="bigbtn secondary" onclick="coachStart()">🚦 Top départ donné par Dam (secours hors-ligne)</button>`:''}
-    <div class="row mt"><button class="bigbtn" style="background:var(--err);margin:0;flex:1" onclick="sosOpen()">🆘 SOS / incident</button>${hasCarte?`<button class="bigbtn secondary" style="margin:0;flex:1" onclick="mapMode=true;render()">🗺️ Carte</button>`:''}</div>
+    <div class="row mt"><button class="bigbtn" style="background:var(--err);margin:0;flex:1" onclick="sosOpen()">🆘 SOS</button><button class="bigbtn secondary" style="margin:0;flex:1" onclick="rulesMode=true;render()">📖 Règles</button>${hasCarte?`<button class="bigbtn secondary" style="margin:0;flex:1" onclick="mapMode=true;render()">🗺️ Carte</button>`:''}</div>
   </div>
   <div class="card">
     <div class="row"><h3 class="grow">Score</h3>
@@ -378,15 +378,52 @@ function renderCoach(){
   <div class="card"><h3>Mes envois</h3><div class="log">${mySubs.map(s=>`<div>Balise <b>${s.balise}</b> · ${fmtTime(s.client_ts)} · ${{ok:'<span class="badge ok">validée</span>',no:'<span class="badge err">refusée — réessayez !</span>',pending:'<span class="badge warn">en attente Dam</span>'}[S.subStatus(s.id)]}</div>`).join('')||'<div>Aucun envoi pour l\'instant</div>'}</div></div>
   <button class="bigbtn secondary" onclick="sync()">🔄 Forcer la synchro</button>
   <footer>Les envois partent automatiquement dès qu'il y a du réseau.</footer>
-  ${camModal()}${teamPickModal()}${sherifOverlay()}${starModal()}${sosModal()}${mapModal()}`;
+  ${camModal()}${teamPickModal()}${sherifOverlay()}${starModal()}${sosModal()}${mapModal()}${rulesModal()}`;
   attachCam();
   updDeadline();
 }
+/* ---- Notice & règles du jeu ---- */
+let rulesMode = false;
+function rulesHtml(){ const s = S.settings;
+  const bonus = (''+(s.arrivalBonus||'')).trim();
+  const minT = s.minTimeMin||120, maxT = s.deadlineMin||150;
+  const fmtH = m=> Math.floor(m/60)+'h'+String(m%60).padStart(2,'0');
+  return `
+  <div class="card"><h3>🎯 Le but du jeu</h3><p class="hint" style="font-size:14px;color:var(--txt)">
+  49 balises sont réparties dans le bois des Vouillants. Chaque équipe, encadrée par son coach, doit en photographier un maximum et revenir dans les temps. L'équipe avec le plus de points gagne l'étape du jour.</p></div>
+  <div class="card"><h3>📸 La règle d'or</h3><p class="hint" style="font-size:14px;color:var(--txt)">
+  Une photo ne compte que si <b>TOUT le groupe</b> est dessus, devant la balise. Le coach photographie (il est donc le seul absent de la photo). Un joueur qui manque = photo refusée. Le groupe est <b>indivisible</b> : on se déplace ensemble, tout le temps.</p></div>
+  <div class="card"><h3>🔢 Les points</h3><p class="hint" style="font-size:14px;color:var(--txt)">
+  🔴 Balise rouge = <b>3 pts</b> (8 balises, les plus dures) · 🟢 verte = <b>2 pts</b> (16) · ⚫ noire = <b>1 pt</b> (25).<br>
+  ⚡ <b>Premier passage</b> : la première équipe dont la photo est validée sur une balise marque <b>le double</b>. L'heure de la photo fait foi.<br>
+  ✅ Chaque photo est validée (ou refusée) par Dam, comparée à sa photo témoin de la balise. Photo refusée = vous pouvez retourner la retenter.</p></div>
+  <div class="card"><h3>⏱️ Le temps</h3><p class="hint" style="font-size:14px;color:var(--txt)">
+  Départs décalés d'1 minute — chaque équipe court sur SON chrono.<br>
+  🚫 <b>Minimum ${fmtH(minT)}</b> : interdit de revenir au point de départ avant.<br>
+  🏁 <b>Maximum ${fmtH(maxT)}</b> : au-delà, <b>−${s.latePenaltyPerMin||1} pt par minute entamée</b> (plafonné à −${s.latePenaltyCap||15}).<br>
+  💡 Conseil : utilisez TOUT le temps disponible — chaque minute entre ${fmtH(minT)} et ${fmtH(maxT)} est une minute pour marquer des points.${bonus?`<br>🏅 Bonus d'arrivée selon l'ordre de retour : ${bonus} pts.`:''}</p></div>
+  <div class="card"><h3>🃏 Le Mistigri</h3><p class="hint" style="font-size:14px;color:var(--txt)">
+  Une équipe le reçoit au départ. Celle qui l'a encore à l'arrivée perd <b>${s.mistigriPenalty!==undefined?s.mistigriPenalty:10} points</b>. Il se refile uniquement <b>en main propre</b> à une équipe croisée — interdit de le cacher ou de l'abandonner. La chasse est autorisée… mais pendant qu'on chasse, on ne ramasse pas de balises.</p></div>
+  <div class="card"><h3>⭐ Les Shérifs</h3><p class="hint" style="font-size:14px;color:var(--txt)">
+  Deux étoiles de shérif sont planquées quelque part sur le parcours. L'équipe qui en trouve une peut <b>arrêter UNE équipe croisée pendant 5 minutes</b> (gainage ou squats, pendant que son chrono tourne). Usage unique — l'étoile revient à Dam à l'arrivée.</p></div>
+  <div class="card"><h3>🎨 Bonus artistique</h3><p class="hint" style="font-size:14px;color:var(--txt)">
+  À l'arrivée, l'équipe qui a produit les plus belles photos de la course reçoit un bonus. Soignez vos poses — le jury (Dam) est incorruptible.</p></div>
+  <div class="card"><h3>🧹 La Brigade verte</h3><p class="hint" style="font-size:14px;color:var(--txt)">
+  La dernière équipe du classement nettoie le site et range le matériel. On laisse la montagne plus propre qu'on l'a trouvée.</p></div>
+  <div class="card"><h3>🛟 Sécurité</h3><p class="hint" style="font-size:14px;color:var(--txt)">
+  On reste sur les sentiers, le coach ferme la marche, pas de sprint en descente. Eau + casquette pour tous. Bouton 🆘 SOS dans l'appli en cas de pépin (+ appel direct à Dam). Les décisions de Dam sont définitives — comme dans Pékin Express, la production a toujours raison. 🎙️</p></div>`;
+}
+function rulesModal(){ if(!rulesMode) return '';
+  return `<div class="modal"><div class="row"><h2 class="grow">📖 Règles du jeu</h2>
+  <button class="badge mut" style="border:none;font-size:16px" onclick="rulesMode=false;render()">✕ fermer</button></div>${rulesHtml()}</div>`; }
 /* ---- Compte à rebours temps imparti ---- */
 function updDeadline(){ const el = document.getElementById('deadline'); if(!el || !S) return;
   const start = S.starts[myTeam];
   if(!start || !S.settings.deadlineMin || S.finishes[myTeam]){ el.textContent=''; return; }
-  const left = new Date(start.client_ts).getTime() + S.settings.deadlineMin*60000 - Date.now();
+  const t0 = new Date(start.client_ts).getTime();
+  const minLeft = t0 + (S.settings.minTimeMin||0)*60000 - Date.now();
+  if(minLeft > 0){ el.style.color='var(--warn)'; el.textContent = '⛔ Retour au départ interdit encore '+fmtDur(minLeft); return; }
+  const left = t0 + S.settings.deadlineMin*60000 - Date.now();
   if(left > 30*60000){ el.style.color='var(--ok)'; el.textContent = '⏳ Temps restant : '+fmtDur(left); }
   else if(left > 10*60000){ el.style.color='var(--warn)'; el.textContent = '⏳ Temps restant : '+fmtDur(left)+' — pensez au retour !'; }
   else if(left > 0){ el.style.color='var(--err)'; el.textContent = '⚠️ PLUS QUE '+fmtDur(left)+' — RENTREZ !'; }
@@ -492,7 +529,7 @@ window.sendPhoto = async ()=>{
 
 /* ---- Organizer view ---- */
 function renderOrg(){
-  const tabs = [['go','🚦 Départs'],['val','✅ Validation'],['lb','🏆 Classement'],['teams','👥 Équipes'],['set','⚙️ Réglages']];
+  const tabs = [['go','🚦 Départs'],['val','✅ Validation'],['lb','🏆 Classement'],['teams','👥 Équipes'],['rules','📖 Règles'],['set','⚙️ Réglages']];
   const pendCount = S.subs.filter(s=>S.subStatus(s.id)==='pending').length;
   const sosOpenList = S.sos.filter(e=>!S.sosAck.has(e.id));
   const sosBanner = sosOpenList.length ? `<div class="card" style="background:#3d1215;border:2px solid var(--err)"><h3 style="color:var(--err)">🆘 SOS EN COURS</h3>${sosOpenList.map(e=>`
@@ -500,7 +537,7 @@ function renderOrg(){
     <button class="finbtn" onclick="sosAck('${e.id}')">✔ Pris en compte</button></div>`).join('')}</div>` : '';
   app.innerHTML = topbar(`<div class="tabs">${tabs.map(([k,l])=>`<button class="${orgTab===k?'active':''}" onclick="setTab('${k}')">${l}${k==='val'&&pendCount?' ('+pendCount+')':''}</button>`).join('')}</div>`)
     + sosBanner
-    + (orgTab==='go'?orgGo():orgTab==='val'?orgVal():orgTab==='lb'?orgLb():orgTab==='teams'?orgTeams():orgSet())
+    + (orgTab==='go'?orgGo():orgTab==='val'?orgVal():orgTab==='lb'?orgLb():orgTab==='teams'?orgTeams():orgTab==='rules'?rulesHtml():orgSet())
     + traceModal() + podiumModal()
     + `<button class="bigbtn secondary" onclick="sync()">🔄 Forcer la synchro</button><button class="bigbtn secondary" onclick="logout()">↩︎ Écran d'accueil</button>`;
   if(orgTab==='val') hydrateValImgs();
@@ -524,7 +561,10 @@ function orgGo(){
 }
 window.go = id=>{ addEvent('start',{team_id:id, payload:{by:'org'}}); };
 window.ungo = id=>{ if(confirm('Annuler le départ ?')) addEvent('start',{team_id:id, payload:{cancel:true, by:'org'}}); };
-window.finish = id=>{ addEvent('finish',{team_id:id, payload:{by:'org'}}); };
+window.finish = id=>{ const st = S.starts[id];
+  if(st){ const min = (Date.now()-new Date(st.client_ts))/60000; const minReq = S.settings.minTimeMin||120;
+    if(min < minReq && !confirm(`⚠️ ${team(id).name} n'a couru que ${Math.floor(min)} min — minimum ${minReq} min (interdit de rentrer avant). Valider quand même l'arrivée ?`)) return; }
+  addEvent('finish',{team_id:id, payload:{by:'org'}}); };
 window.unfinish = id=>{ addEvent('finish',{team_id:id, payload:{cancel:true, by:'org'}}); };
 
 function orgVal(){
@@ -646,7 +686,8 @@ window.addTeam = ()=>{ const teams = JSON.parse(JSON.stringify(S.teams)); const 
 function orgSet(){
   const s = S.settings;
   return `<div class="card"><h3>Réglages course</h3>
-  <label>Temps imparti (minutes, base du calcul de retard)</label><input id="setDeadline" type="number" value="${s.deadlineMin||''}">
+  <label>Temps imparti maximum (minutes — base du calcul de retard)</label><input id="setDeadline" type="number" value="${s.deadlineMin||''}">
+  <label>Temps minimum avant retour autorisé (minutes)</label><input id="setMinTime" type="number" value="${s.minTimeMin!==undefined?s.minTimeMin:120}">
   <label>Pénalité retard (points par minute entamée)</label><input id="setPerMin" type="number" value="${s.latePenaltyPerMin}">
   <label>Pénalité retard max (plafond)</label><input id="setCap" type="number" value="${s.latePenaltyCap}">
   <label>Bonus ordre d'arrivée (ex : 6,5,4,3,2,1 — vide = aucun)</label><input id="setBonus" value="${esc(''+(s.arrivalBonus||''))}">
@@ -660,6 +701,7 @@ function orgSet(){
 }
 window.saveSettings = ()=>{ addEvent('config_settings',{payload:{
   deadlineMin: parseInt(document.getElementById('setDeadline').value)||null,
+  minTimeMin: parseInt(document.getElementById('setMinTime').value)||0,
   latePenaltyPerMin: parseFloat(document.getElementById('setPerMin').value)||0,
   latePenaltyCap: parseFloat(document.getElementById('setCap').value)||999,
   arrivalBonus: document.getElementById('setBonus').value,
