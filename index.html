@@ -150,9 +150,17 @@ async function addEvent(type, fields){
 
 function derive(){
   const evs = [...EVENTS.values()].sort((a,b)=> a.client_ts < b.client_ts ? -1 : 1);
+  let resetTs = null;
+  for(const e of evs) if(e.type==='config_reset' && (!resetTs || e.client_ts > resetTs)) resetTs = e.client_ts;
+  if(resetTs && localStorage.getItem('vx_last_reset') !== resetTs){
+    localStorage.setItem('vx_last_reset', resetTs);
+    Object.keys(localStorage).filter(k=>k.startsWith('vx_star_seen_')).forEach(k=>localStorage.removeItem(k));
+    localStorage.removeItem('vx_sherif_until');
+  }
   const st = { teams: DEFAULT_TEAMS, settings: { pin: ORG_PIN_DEFAULT, deadlineMin: 150, minTimeMin: 120, latePenaltyPerMin: 1, latePenaltyCap: 15, arrivalBonus: '', showLb: true, mistigriPenalty: 10 }, starts:{}, finishes:{}, subs:[], vals:{}, adjusts:[], mistigri:{holder:null, hist:[]}, sherif:{counts:{}, log:[]}, lastPos:{}, tracks:{}, sos:[], sosAck:new Set() };
   const shc = id=>{ if(!st.sherif.counts[id]) st.sherif.counts[id]={found:0,used:0}; return st.sherif.counts[id]; };
   for(const e of evs){
+    if(resetTs && e.client_ts <= resetTs && e.type!=='config_teams' && e.type!=='config_settings') continue;
     if(e.type==='config_teams') st.teams = e.payload.teams;
     else if(e.type==='config_settings') st.settings = Object.assign({}, st.settings, e.payload);
     else if(e.type==='start'){ if(e.payload.cancel) delete st.starts[e.team_id]; else st.starts[e.team_id]=e; }
@@ -704,6 +712,9 @@ function orgSet(){
   <label><input type="checkbox" id="setShowLb" style="width:auto" ${s.showLb?'checked':''}> Classement visible par les coachs</label>
   <label>Code organisateur</label><input id="setPin" value="${esc(s.pin||ORG_PIN_DEFAULT)}">
   <button class="bigbtn mt" onclick="saveSettings()">Enregistrer</button></div>
+  <div class="card"><h3>🗑️ Remise à zéro de la course</h3>
+  <p class="hint">Efface photos, scores, départs, positions, SOS et jeux sur TOUS les téléphones (équipes et réglages conservés). À faire demain matin AVANT le départ si des essais ont été faits ce soir. Se propage à chaque téléphone à sa prochaine synchro.</p>
+  <button class="bigbtn" style="background:var(--err)" onclick="doReset()">🗑️ Remise à zéro</button></div>
   <div class="card"><h3>Préparation téléphones</h3>
   <button class="bigbtn secondary" onclick="preloadOriginals(this)">⬇️ Précharger les 49 photos balises (hors-ligne)</button>
   <p class="hint">À faire sur CHAQUE téléphone en WiFi ce soir : ouvre l'appli, ajoute-la à l'écran d'accueil, choisis le rôle, puis précharge les photos. Ensuite plus besoin de réseau.</p></div>`;
@@ -717,6 +728,9 @@ window.saveSettings = ()=>{ addEvent('config_settings',{payload:{
   mistigriPenalty: parseFloat(document.getElementById('setMistigri').value)||0,
   showLb: document.getElementById('setShowLb').checked,
   pin: document.getElementById('setPin').value||ORG_PIN_DEFAULT }}); alert('Réglages enregistrés ✔'); };
+window.doReset = ()=>{ if(!confirm('Effacer toutes les données de course (photos, scores, départs, jeux) sur tous les téléphones ?')) return;
+  if(!confirm('Vraiment sûr ? Les équipes et réglages sont conservés, tout le reste repart de zéro.')) return;
+  addEvent('config_reset',{payload:{by:'org'}}); alert('Remise à zéro envoyée ✔ — chaque téléphone l\'applique à sa prochaine synchro.'); };
 window.preloadOriginals = async btn=>{
   btn.disabled=true; let ok=0;
   for(let n=1;n<=N_BAL;n++){ try{ const r=await fetch(originalUrl(n)); if(r.ok){ ok++; } }catch(e){}
