@@ -410,7 +410,7 @@ function renderCoach(){
   <div class="card"><h3>Mes envois</h3><div class="log">${mySubs.map(s=>`<div>Balise <b>${s.balise}</b> · ${fmtTime(s.client_ts)} · ${{ok:'<span class="badge ok">validée</span>',no:'<span class="badge err">refusée — réessayez !</span>',pending:'<span class="badge warn">en attente Dam</span>'}[S.subStatus(s.id)]}</div>`).join('')||'<div>Aucun envoi pour l\'instant</div>'}</div></div>
   <button class="bigbtn secondary" onclick="sync()">🔄 Forcer la synchro</button>
   <footer>Les envois partent automatiquement dès qu'il y a du réseau.</footer>
-  ${camModal()}${teamPickModal()}${sherifOverlay()}${starModal()}${sosModal()}${mapModal()}${rulesModal()}`;
+  ${camModal()}${teamPickModal()}${sherifOverlay()}${starModal()}${sosModal()}${mapModal()}${rulesModal()}${zoomModal()}`;
   attachCam();
   updDeadline();
 }
@@ -508,6 +508,15 @@ function mapModal(){ if(!mapMode) return '';
    <button class="badge mut" style="border:none;font-size:15px" onclick="mapMode=false;render()">✕ fermer</button></div>
   <div class="hint">✅ Validées : ${done||'aucune'} · ⏳ En attente : ${pend||'aucune'}</div>
   <div style="overflow:auto;flex:1;margin-top:6px"><img src="carte.jpg" style="max-width:none;width:${mapZoom*100}%"></div></div>`; }
+/* ---- Zoom photo ---- */
+let zoomSrc = null, zoomLvl = 1.5;
+window.imgZoom = src=>{ zoomSrc = src; zoomLvl = 1.5; render(); };
+function zoomModal(){ if(!zoomSrc) return '';
+  return `<div class="modal" style="padding:6px;z-index:60"><div class="row"><b class="grow">🔍 Zoom — repère les détails</b>
+  <button class="badge mut" style="border:none;font-size:17px;padding:4px 12px" onclick="zoomLvl=Math.max(1,zoomLvl-0.5);render()">−</button>
+  <button class="badge mut" style="border:none;font-size:17px;padding:4px 12px" onclick="zoomLvl=Math.min(6,zoomLvl+0.5);render()">+</button>
+  <button class="badge mut" style="border:none;font-size:15px" onclick="zoomSrc=null;render()">✕ fermer</button></div>
+  <div style="overflow:auto;flex:1;margin-top:6px"><img src="${zoomSrc}" style="max-width:none;width:${zoomLvl*100}%"></div></div>`; }
 /* ---- Jeux : mistigri & shérifs ---- */
 let teamPick = null;
 function teamPickModal(){ if(!teamPick) return '';
@@ -537,8 +546,8 @@ function camModal(){
   return `<div class="modal">
     <div class="row"><h2 class="grow">Balise ${camBal} <span class="badge ${balCls(camBal)==='r'?'err':balCls(camBal)==='v'?'ok':'mut'}">${balVal(camBal)} pt${balVal(camBal)>1?'s':''}</span></h2>
     <button class="badge mut" style="border:none;font-size:16px" onclick="closeCam()">✕ fermer</button></div>
-    <figure style="margin:0 0 10px"><img src="${originalUrl(camBal)}" style="width:100%;border-radius:12px" onerror="this.parentElement.innerHTML='<div class=banner>⚠️ Photo de la balise pas encore chargée — il faut ouvrir l\\'appli en WiFi une fois pour les télécharger.</div>'">
-    <figcaption class="hint center">🎯 Voilà la balise à trouver — même endroit, même borne (photo de Dam)</figcaption></figure>
+    <figure style="margin:0 0 10px"><img src="${originalUrl(camBal)}" style="width:100%;border-radius:12px" onclick="imgZoom(this.src)" onerror="this.parentElement.innerHTML='<div class=banner>⚠️ Photo de la balise pas encore chargée — il faut ouvrir l\\'appli en WiFi une fois pour les télécharger.</div>'">
+    <figcaption class="hint center">🎯 Voilà la balise à trouver — <b>appuie sur la photo pour zoomer</b> 🔍</figcaption></figure>
     <p class="hint">Tout le groupe sur la photo (le coach photographie). L'heure de la photo fait foi pour le premier passage.</p>
     ${camUrl?`<img src="${camUrl}">`:''}
     <input type="file" accept="image/*" capture="environment" id="camInput" style="display:none">
@@ -581,7 +590,7 @@ function renderOrg(){
   app.innerHTML = topbar(`<div class="tabs">${tabs.map(([k,l])=>`<button class="${orgTab===k?'active':''}" onclick="setTab('${k}')">${l}${k==='val'&&pendCount?' ('+pendCount+')':''}</button>`).join('')}</div>`)
     + sosBanner
     + (orgTab==='go'?orgGo():orgTab==='val'?orgVal():orgTab==='lb'?orgLb():orgTab==='teams'?orgTeams():orgTab==='rules'?rulesHtml():orgSet())
-    + traceModal() + podiumModal()
+    + traceModal() + podiumModal() + zoomModal()
     + `<button class="bigbtn secondary" onclick="sync()">🔄 Forcer la synchro</button><button class="bigbtn secondary" onclick="logout()">↩︎ Écran d'accueil</button>`;
   if(orgTab==='val') hydrateValImgs();
 }
@@ -624,8 +633,8 @@ function orgVal(){
     <div class="row"><span class="teamdot" style="background:${t.color}"></span><b class="grow">${esc(t.name)} — balise ${sub.balise} (${balVal(sub.balise)} pt${balVal(sub.balise)>1?'s':''})</b>
     <span class="hint">${fmtTime(sub.client_ts)}</span></div>
     <div class="compare mt">
-      <figure><img loading="lazy" src="${originalUrl(sub.balise)}" onerror="this.style.opacity=.2"><figcaption>Ta photo (balise ${sub.balise})</figcaption></figure>
-      <figure><img loading="lazy" data-subimg="${sub.id}"><figcaption>Photo de l'équipe</figcaption></figure>
+      <figure><img loading="lazy" src="${originalUrl(sub.balise)}" onclick="imgZoom(this.src)" onerror="this.style.opacity=.2"><figcaption>Ta photo (balise ${sub.balise}) 🔍</figcaption></figure>
+      <figure><img loading="lazy" data-subimg="${sub.id}" onclick="imgZoom(this.src)"><figcaption>Photo de l'équipe 🔍</figcaption></figure>
     </div>
     ${sub.payload.gps?`<div class="hint mt">📍 <a style="color:var(--muted)" href="${mapsLink(sub.payload.gps)}" target="_blank">position au moment de la photo (±${sub.payload.gps.acc}m)</a></div>`:''}
     ${status==='pending'?`<div class="valbtns"><button class="vok" onclick="validate('${sub.id}','ok')">✅ Valider${isFirstPending(sub)?' (1er passage ×2 ?)':''}</button><button class="vno" onclick="validate('${sub.id}','no')">❌ Refuser</button></div>`
