@@ -157,7 +157,7 @@ function derive(){
     Object.keys(localStorage).filter(k=>k.startsWith('vx_star_seen_')).forEach(k=>localStorage.removeItem(k));
     localStorage.removeItem('vx_sherif_until');
   }
-  const st = { teams: DEFAULT_TEAMS, settings: { pin: ORG_PIN_DEFAULT, deadlineMin: 150, minTimeMin: 120, latePenaltyPerMin: 1, latePenaltyCap: 15, arrivalBonus: '', showLb: true, mistigriPenalty: 10 }, starts:{}, finishes:{}, subs:[], vals:{}, adjusts:[], mistigri:{holder:null, hist:[]}, sherif:{counts:{}, log:[]}, lastPos:{}, tracks:{}, sos:[], sosAck:new Set() };
+  const st = { teams: DEFAULT_TEAMS, settings: { pin: ORG_PIN_DEFAULT, deadlineMin: 150, minTimeMin: 120, latePenaltyPerMin: 1, latePenaltyCap: 15, arrivalBonus: '', showLb: true, mistigriPenalty: 10 }, starts:{}, finishes:{}, subs:[], vals:{}, adjusts:[], mistigri:{holder:null, hist:[]}, sherif:{counts:{}, log:[]}, lastPos:{}, tracks:{}, sos:[], sosAck:new Set(), hello:{} };
   const shc = id=>{ if(!st.sherif.counts[id]) st.sherif.counts[id]={found:0,used:0}; return st.sherif.counts[id]; };
   for(const e of evs){
     if(resetTs && e.client_ts <= resetTs && e.type!=='config_teams' && e.type!=='config_settings') continue;
@@ -174,6 +174,7 @@ function derive(){
     else if(e.type==='sherif_use'){ shc(e.team_id).used++; st.sherif.log.push(e); }
     else if(e.type==='sherif_hit'){ st.sherif.log.push(e); }
     else if(e.type==='pos'){ if(e.team_id){ st.lastPos[e.team_id]=e; (st.tracks[e.team_id]=st.tracks[e.team_id]||[]).push(e); } }
+    else if(e.type==='hello'){ if(e.team_id && (!st.hello[e.team_id] || e.client_ts > st.hello[e.team_id].client_ts)) st.hello[e.team_id]=e; }
     else if(e.type==='sos'){ st.sos.push(e); }
     else if(e.type==='sos_ack'){ st.sosAck.add(e.payload.sosId); }
   }
@@ -331,7 +332,13 @@ function renderRole(){
   <button class="rolebtn" onclick="pickOrg()">🎙️ <b>Organisateur</b> — Dam</button>
   <footer>NPNG · fonctionne hors-ligne une fois installée</footer>`;
 }
-window.pickTeam = id=>{ myTeam=id; localStorage.setItem('vx_team',id); view='coach'; localStorage.setItem('vx_role','coach'); recordFix(false); render(); };
+function sayHello(force){ if(view!=='coach' || !myTeam) return;
+  const last = +localStorage.getItem('vx_hello')||0;
+  if(!force && Date.now()-last < 3600000) return;
+  localStorage.setItem('vx_hello', Date.now());
+  addEvent('hello',{team_id:myTeam, payload:{ua:(navigator.userAgent.match(/iPhone|iPad|Android/)||['?'])[0]}});
+}
+window.pickTeam = id=>{ myTeam=id; localStorage.setItem('vx_team',id); view='coach'; localStorage.setItem('vx_role','coach'); recordFix(false); sayHello(true); render(); };
 window.pickOrg = ()=>{ const pin = prompt('Code organisateur :'); if(pin === (S.settings.pin||ORG_PIN_DEFAULT)){ view='org'; localStorage.setItem('vx_role','org'); render(); } else alert('Mauvais code'); };
 window.logout = ()=>{ view='role'; localStorage.setItem('vx_role','role'); render(); };
 
@@ -566,7 +573,8 @@ window.sosAck = id=>{ addEvent('sos_ack',{payload:{sosId:id}}); };
 function orgGo(){
   return `<div class="card"><h3>Départs décalés (1 min d'intervalle)</h3><div class="golist">` +
   S.teams.map(t=>{ const st=S.starts[t.id], fin=S.finishes[t.id];
-    return `<div class="row"><span class="teamdot" style="background:${t.color}"></span><div class="grow"><b>${esc(t.name)}</b><br>
+    return `<div class="row"><span class="teamdot" style="background:${t.color}"></span><div class="grow"><b>${esc(t.name)}</b>
+    ${S.hello[t.id]?`<span class="badge ok">📱 appli OK ${fmtTime(S.hello[t.id].client_ts).slice(0,5)}${S.hello[t.id].payload.ua?' · '+esc(S.hello[t.id].payload.ua):''}</span>`:`<span class="badge err">📵 appli pas encore ouverte</span>`}<br>
     <span class="hint">${st?('départ '+fmtTime(st.client_ts)+(st.payload.by==='coach'?' (par coach)':'')):'pas parti'}${fin?' · 🏁 '+fmtTime(fin.client_ts):''}${S.lastPos[t.id]?` · <a style="color:var(--muted)" href="${mapsLink(S.lastPos[t.id].payload)}" target="_blank">📍 ${fmtTime(S.lastPos[t.id].client_ts)}</a>`:''}</span>
     ${st&&!fin?`<div class="chrono small" data-start="${st.client_ts}">${fmtDur(Date.now()-new Date(st.client_ts))}</div>`:''}
     ${st&&fin?`<div class="chrono small">${fmtDur(new Date(fin.client_ts)-new Date(st.client_ts))}</div>`:''}</div>
@@ -754,7 +762,7 @@ setInterval(()=>{
 
 /* ---- boot ---- */
 if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
-loadEvents().then(()=>{ render(); sync(); });
+loadEvents().then(()=>{ render(); sayHello(false); sync(); });
 </script>
 </body>
 </html>
