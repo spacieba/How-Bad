@@ -351,6 +351,7 @@ function renderCoach(){
   <div class="card">
     <div class="row"><span class="teamdot" style="background:${t.color}"></span><h2 class="grow">${esc(t.name)}</h2>
     <button class="badge mut" style="border:none" onclick="logout()">changer</button></div>
+    ${t.players?`<div class="hint" style="margin:4px 0 8px">👥 ${esc(t.players)}${t.coach?' — coach '+esc(t.coach):''}</div>`:''}
     <div class="chrono" id="chr">${chrono}</div>
     <div class="center hint">${start? (fin?'🏁 Arrivée validée':'Départ '+fmtTime(start.client_ts)) : 'En attente du départ…'}</div>
     <div class="center mt" id="deadline" style="font-weight:800;font-size:15px"></div>
