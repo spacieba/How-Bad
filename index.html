@@ -332,13 +332,28 @@ function renderRole(){
   <button class="rolebtn" onclick="pickOrg()">🎙️ <b>Organisateur</b> — Dam</button>
   <footer>NPNG · fonctionne hors-ligne une fois installée</footer>`;
 }
+let preloading = false;
+async function ensureOriginals(){
+  if(view!=='coach' || !navigator.onLine || preloading) return;
+  if(localStorage.getItem('vx_preloaded')==='1') return;
+  preloading = true; let ok=0;
+  for(let n=1;n<=N_BAL;n++){
+    try{ const r = await fetch(originalUrl(n)); if(r.ok) ok++; }catch(e){}
+    const el = document.getElementById('preloadInfo'); if(el) el.textContent = `📦 Chargement des photos balises : ${n}/${N_BAL}…`;
+  }
+  if(ok>=N_BAL) localStorage.setItem('vx_preloaded','1');
+  const el = document.getElementById('preloadInfo');
+  if(el) el.textContent = ok>=N_BAL ? '✓ Les 49 photos balises sont prêtes hors-ligne' : `⚠️ ${ok}/${N_BAL} photos chargées — laisse l'appli ouverte en WiFi pour finir`;
+  preloading = false;
+}
+window.addEventListener('online', ()=>ensureOriginals());
 function sayHello(force){ if(view!=='coach' || !myTeam) return;
   const last = +localStorage.getItem('vx_hello')||0;
   if(!force && Date.now()-last < 3600000) return;
   localStorage.setItem('vx_hello', Date.now());
   addEvent('hello',{team_id:myTeam, payload:{ua:(navigator.userAgent.match(/iPhone|iPad|Android/)||['?'])[0]}});
 }
-window.pickTeam = id=>{ myTeam=id; localStorage.setItem('vx_team',id); view='coach'; localStorage.setItem('vx_role','coach'); recordFix(false); sayHello(true); render(); };
+window.pickTeam = id=>{ myTeam=id; localStorage.setItem('vx_team',id); view='coach'; localStorage.setItem('vx_role','coach'); recordFix(false); sayHello(true); render(); ensureOriginals(); };
 window.pickOrg = ()=>{ const pin = prompt('Code organisateur :'); if(pin === (S.settings.pin||ORG_PIN_DEFAULT)){ view='org'; localStorage.setItem('vx_role','org'); render(); } else alert('Mauvais code'); };
 window.logout = ()=>{ view='role'; localStorage.setItem('vx_role','role'); render(); };
 
@@ -384,8 +399,9 @@ function renderCoach(){
     <button class="bigbtn secondary" onclick="sherifHit()">🚨 On est flagués → lancer les 5 min</button>
   </div>
   <div class="card">
-    <h3>Balises — appuie pour photographier</h3>
-    <div class="hint">🔴 3 pts · 🟢 2 pts · ⚫ 1 pt — TOUT le groupe sur la photo !</div>
+    <h3>Balises — appuie pour voir la cible et photographier</h3>
+    <div class="hint">Appuie sur un numéro → la photo de la balise s'affiche (à retrouver sur le terrain) → prends la vôtre. 🔴 3 pts · 🟢 2 pts · ⚫ 1 pt — TOUT le groupe sur la photo !</div>
+    <div class="hint center mt" id="preloadInfo">${localStorage.getItem('vx_preloaded')==='1'?'✓ Les 49 photos balises sont prêtes hors-ligne':'📦 Photos balises : chargement dès qu\'il y a du réseau…'}</div>
     <div class="grid mt">${Array.from({length:N_BAL},(_,i)=>i+1).map(n=>`
       <div class="bal ${balCls(n)} ${balState(n)}" onclick="openCam(${n})">${n}<small>${balVal(n)} pt${balVal(n)>1?'s':''}</small>
       <span class="st">${balState(n)==='done'?'✓':balState(n)==='pend'?'⏳':balState(n)==='refused'?'✗':''}</span></div>`).join('')}
@@ -521,6 +537,8 @@ function camModal(){
   return `<div class="modal">
     <div class="row"><h2 class="grow">Balise ${camBal} <span class="badge ${balCls(camBal)==='r'?'err':balCls(camBal)==='v'?'ok':'mut'}">${balVal(camBal)} pt${balVal(camBal)>1?'s':''}</span></h2>
     <button class="badge mut" style="border:none;font-size:16px" onclick="closeCam()">✕ fermer</button></div>
+    <figure style="margin:0 0 10px"><img src="${originalUrl(camBal)}" style="width:100%;border-radius:12px" onerror="this.parentElement.innerHTML='<div class=banner>⚠️ Photo de la balise pas encore chargée — il faut ouvrir l\\'appli en WiFi une fois pour les télécharger.</div>'">
+    <figcaption class="hint center">🎯 Voilà la balise à trouver — même endroit, même borne (photo de Dam)</figcaption></figure>
     <p class="hint">Tout le groupe sur la photo (le coach photographie). L'heure de la photo fait foi pour le premier passage.</p>
     ${camUrl?`<img src="${camUrl}">`:''}
     <input type="file" accept="image/*" capture="environment" id="camInput" style="display:none">
@@ -762,7 +780,7 @@ setInterval(()=>{
 
 /* ---- boot ---- */
 if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
-loadEvents().then(()=>{ render(); sayHello(false); sync(); });
+loadEvents().then(()=>{ render(); sayHello(false); sync(); ensureOriginals(); });
 </script>
 </body>
 </html>
