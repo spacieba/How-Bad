@@ -157,7 +157,7 @@ function derive(){
     Object.keys(localStorage).filter(k=>k.startsWith('vx_star_seen_')).forEach(k=>localStorage.removeItem(k));
     localStorage.removeItem('vx_sherif_until');
   }
-  const st = { teams: DEFAULT_TEAMS, settings: { pin: ORG_PIN_DEFAULT, deadlineMin: 150, minTimeMin: 120, latePenaltyPerMin: 1, latePenaltyCap: 15, arrivalBonus: '', showLb: true, mistigriPenalty: 10 }, starts:{}, finishes:{}, subs:[], vals:{}, adjusts:[], mistigri:{holder:null, hist:[]}, sherif:{counts:{}, log:[]}, lastPos:{}, tracks:{}, sos:[], sosAck:new Set(), hello:{} };
+  const st = { teams: DEFAULT_TEAMS, settings: { pin: ORG_PIN_DEFAULT, deadlineMin: 150, minTimeMin: 120, latePenaltyPerMin: 1, latePenaltyCap: 15, arrivalBonus: '', showLb: true, mistigriPenalty: 10 }, starts:{}, finishes:{}, subs:[], vals:{}, adjusts:[], mistigri:{holder:null, hist:[]}, sherif:{counts:{}, log:[]}, lastPos:{}, tracks:{}, sos:[], sosAck:new Set(), hello:{}, wod:{} };
   const shc = id=>{ if(!st.sherif.counts[id]) st.sherif.counts[id]={found:0,used:0}; return st.sherif.counts[id]; };
   for(const e of evs){
     if(resetTs && e.client_ts <= resetTs && e.type!=='config_teams' && e.type!=='config_settings') continue;
@@ -177,6 +177,8 @@ function derive(){
     else if(e.type==='hello'){ if(e.team_id && (!st.hello[e.team_id] || e.client_ts > st.hello[e.team_id].client_ts)) st.hello[e.team_id]=e; }
     else if(e.type==='sos'){ st.sos.push(e); }
     else if(e.type==='sos_ack'){ st.sosAck.add(e.payload.sosId); }
+    else if(e.type==='wod_score'){ const k=e.payload.event, p=e.payload.part||1;
+      (st.wod[k]=st.wod[k]||{}); (st.wod[k][e.team_id]=st.wod[k][e.team_id]||{}); st.wod[k][e.team_id][p]=e.payload.value; }
   }
   // status of each submission
   st.subStatus = id => st.vals[id] ? (st.vals[id].payload.verdict==='ok'?'ok':'no') : 'pending';
@@ -187,7 +189,7 @@ function derive(){
   // per-team scores
   st.scores = {};
   for(const t of st.teams){
-    const sc = { base:0, doubles:0, validated:new Set(), pending:0, refused:0, adjust:0, arrival:0, late:0, mistigri:0, total:0 };
+    const sc = { base:0, doubles:0, validated:new Set(), pending:0, refused:0, adjust:0, arrival:0, late:0, mistigri:0, wodDetail:{}, wodTotal:0, total:0 };
     const seen = new Set();
     for(const sub of st.subs.filter(s=>s.team_id===t.id)){
       const status = st.subStatus(sub.id);
@@ -205,6 +207,25 @@ function derive(){
   const bonuses = (''+(st.settings.arrivalBonus||'')).split(',').map(x=>parseInt(x.trim())).filter(x=>!isNaN(x));
   const finished = st.teams.filter(t=>st.finishes[t.id]).sort((a,b)=> st.finishes[a.id].client_ts < st.finishes[b.id].client_ts ? -1:1);
   finished.forEach((t,i)=>{ if(bonuses[i]!==undefined) st.scores[t.id].arrival = bonuses[i]; });
+  // épreuves WOD après-midi
+  st.wodDefs = [
+    {key:'cote',   name:'La Côte 🏔️',  kind:'chrono', parts:2, partLabel:'Manche'},
+    {key:'chaine', name:'La Chaîne 🔗', kind:'reps',   parts:2, partLabel:'Session'},
+    {key:'ep3',    name: st.settings.ep3Name||'Épreuve 3', kind: st.settings.ep3Kind||'chrono', parts: parseInt(st.settings.ep3Parts)||1, partLabel:'Manche'},
+  ];
+  st.wodTotals = {};
+  const WOD_PTS = [6,5,4,3,2,1];
+  for(const d of st.wodDefs){
+    const totals = {};
+    for(const t of st.teams){ const rec = (st.wod[d.key]||{})[t.id]; if(!rec) continue;
+      let tot=0, has=false; for(let p=1;p<=d.parts;p++){ if(rec[p]!=null){ tot+=rec[p]; has=true; } }
+      if(has) totals[t.id]=tot; }
+    st.wodTotals[d.key]=totals;
+    const ids = Object.keys(totals).sort((a,b)=> d.kind==='chrono' ? totals[a]-totals[b] : totals[b]-totals[a]);
+    ids.forEach((id,i)=>{ let r=i; while(r>0 && totals[ids[r-1]]===totals[id]) r--;
+      st.scores[id].wodDetail[d.key]=WOD_PTS[r]||0; });
+  }
+  for(const t of st.teams){ const sc=st.scores[t.id]; sc.wodTotal = Object.values(sc.wodDetail).reduce((a,b)=>a+b,0); }
   // late penalty
   for(const t of st.teams){ const sc=st.scores[t.id]; const start=st.starts[t.id], fin=st.finishes[t.id];
     if(start && fin && st.settings.deadlineMin){
@@ -213,7 +234,7 @@ function derive(){
       if(late>0) sc.late = -Math.min(Math.ceil(late)*(st.settings.latePenaltyPerMin||0), st.settings.latePenaltyCap||999);
     }
     sc.mistigri = (st.mistigri.holder===t.id) ? -(st.settings.mistigriPenalty!==undefined?st.settings.mistigriPenalty:10) : 0;
-    sc.total = sc.base + sc.doubles + sc.adjust + sc.arrival + sc.late + sc.mistigri;
+    sc.total = sc.base + sc.doubles + sc.adjust + sc.arrival + sc.late + sc.mistigri + sc.wodTotal;
   }
   st.ranking = [...st.teams].sort((a,b)=> st.scores[b.id].total - st.scores[a.id].total);
   S = st;
@@ -407,6 +428,10 @@ function renderCoach(){
       <span class="st">${balState(n)==='done'?'✓':balState(n)==='pend'?'⏳':balState(n)==='refused'?'✗':''}</span></div>`).join('')}
     </div>
   </div>
+  <div class="card"><h3>💪 Épreuves de l'après-midi — saisis TES résultats</h3>
+    <p class="hint">Ton chrono / tes reps, entrés par TOI après chaque passage. Classement par épreuve : 1er = 6 pts, 2e = 5… 6e = 1, ajoutés automatiquement au général.</p>
+    ${wodForms(myTeam)}
+  </div>
   <div class="card"><h3>Mes envois</h3><div class="log">${mySubs.map(s=>`<div>Balise <b>${s.balise}</b> · ${fmtTime(s.client_ts)} · ${{ok:'<span class="badge ok">validée</span>',no:'<span class="badge err">refusée — réessayez !</span>',pending:'<span class="badge warn">en attente Dam</span>'}[S.subStatus(s.id)]}</div>`).join('')||'<div>Aucun envoi pour l\'instant</div>'}</div></div>
   <button class="bigbtn secondary" onclick="sync()">🔄 Forcer la synchro</button>
   <footer>Les envois partent automatiquement dès qu'il y a du réseau.</footer>
@@ -444,6 +469,12 @@ function rulesHtml(){ const s = S.settings;
   <b>Utilisation : pas besoin de toucher.</b> À portée de vue (~20 m max), on <b>brandit l'étoile</b> et on crie <b>« SHÉRIF ! »</b> en désignant l'équipe visée — son coach lance aussitôt les 5 minutes sur son téléphone. Trop loin pour être entendu = raté, on ne poursuit pas. <b>Une étoile = un seul flag</b>, puis elle revient à Dam à l'arrivée.</p></div>
   <div class="card"><h3>🎨 Bonus artistique</h3><p class="hint" style="font-size:14px;color:var(--txt)">
   À l'arrivée, l'équipe qui a produit les plus belles photos de la course reçoit un bonus. Soignez vos poses — le jury (Dam) est incorruptible.</p></div>
+  <div class="card"><h3>💪 L'après-midi : les épreuves</h3><p class="hint" style="font-size:14px;color:var(--txt)">
+  3 épreuves en relais avec TOUTE l'équipe, chacune chronométrée ou comptée :<br>
+  🏔️ <b>La Côte</b> — relais de côte, 2 manches, temps cumulé.<br>
+  🔗 <b>La Chaîne</b> — burpees synchronisés toute l'équipe, 2 sessions de 3 min, une rep ne compte que si tout le monde saute ensemble, total cumulé.<br>
+  💪 <b>${esc(S.settings.ep3Name||'Épreuve 3')}</b> — annoncée sur place.<br>
+  Classement à la performance sur chaque épreuve : 1er = 6 pts, 2e = 5… 6e = 1, ajoutés au classement général. Le coach saisit les résultats de SON équipe dans l'appli.</p></div>
   <div class="card"><h3>🧹 La Brigade verte</h3><p class="hint" style="font-size:14px;color:var(--txt)">
   La dernière équipe du classement nettoie le site et range le matériel. On laisse la montagne plus propre qu'on l'a trouvée.</p></div>
   <div class="card"><h3>🛟 Sécurité — non négociable</h3><p class="hint" style="font-size:14px;color:var(--txt)">
@@ -508,6 +539,37 @@ function mapModal(){ if(!mapMode) return '';
    <button class="badge mut" style="border:none;font-size:15px" onclick="mapMode=false;render()">✕ fermer</button></div>
   <div class="hint">✅ Validées : ${done||'aucune'} · ⏳ En attente : ${pend||'aucune'}</div>
   <div style="overflow:auto;flex:1;margin-top:6px"><img src="carte.jpg" style="max-width:none;width:${mapZoom*100}%"></div></div>`; }
+/* ---- Épreuves WOD ---- */
+function fmtPerf(d, v){ return d.kind==='chrono' ? Math.floor(v/60)+"'"+String(v%60).padStart(2,'0') : v+' reps'; }
+function wodForms(teamId){
+  return S.wodDefs.map(d=>{
+    const rec = (S.wod[d.key]||{})[teamId]||{};
+    const pts = S.scores[teamId] ? S.scores[teamId].wodDetail[d.key] : 0;
+    const tot = S.wodTotals[d.key][teamId];
+    return `<div class="card" style="background:var(--card2)"><div class="row"><b class="grow">${esc(d.name)}</b>
+    ${tot!==undefined?`<span class="badge mut">${fmtPerf(d,tot)}</span>`:''}${pts?`<span class="badge ok">+${pts} pts</span>`:''}</div>
+    ${Array.from({length:d.parts},(_,i)=>i+1).map(p=>{
+      const v = rec[p];
+      if(d.kind==='chrono'){ const mm = v!=null?Math.floor(v/60):'', ss = v!=null?v%60:'';
+        return `<div class="row mt"><span class="hint" style="width:76px">${d.partLabel} ${p}</span>
+        <input type="number" inputmode="numeric" min="0" placeholder="min" id="w_${d.key}_${p}_m" value="${mm}">
+        <input type="number" inputmode="numeric" min="0" max="59" placeholder="sec" id="w_${d.key}_${p}_s" value="${ss}"></div>`; }
+      return `<div class="row mt"><span class="hint" style="width:76px">${d.partLabel} ${p}</span>
+      <input type="number" inputmode="numeric" min="0" placeholder="répétitions" id="w_${d.key}_${p}_r" value="${v!=null?v:''}"></div>`; }).join('')}
+    <button class="bigbtn secondary mt" style="padding:10px" onclick="wodSave('${d.key}',${d.parts},'${d.kind}','${teamId}')">💾 Enregistrer ${esc(d.name)}</button></div>`;
+  }).join('');
+}
+window.wodSave = (key, parts, kind, teamId)=>{
+  let saved = 0;
+  for(let p=1;p<=parts;p++){
+    let v = null;
+    if(kind==='chrono'){ const m = parseInt(document.getElementById(`w_${key}_${p}_m`).value), s = parseInt(document.getElementById(`w_${key}_${p}_s`).value);
+      if(isNaN(m) && isNaN(s)) continue; v = (isNaN(m)?0:m)*60 + (isNaN(s)?0:s); }
+    else { const r = parseInt(document.getElementById(`w_${key}_${p}_r`).value); if(isNaN(r)) continue; v = r; }
+    addEvent('wod_score',{team_id:teamId, payload:{event:key, part:p, value:v}}); saved++;
+  }
+  alert(saved? 'Résultat enregistré ✔ — le classement de l\'épreuve se met à jour partout.' : 'Aucune valeur saisie');
+};
 /* ---- Zoom photo ---- */
 let zoomSrc = null, zoomLvl = 1.5;
 window.imgZoom = src=>{ zoomSrc = src; zoomLvl = 1.5; render(); };
@@ -675,15 +737,15 @@ function podiumModal(){ if(!podiumMode) return '';
     <div class="row"><span style="font-size:28px">${['🥇','🥈','🥉'][i]||'<b>'+(i+1)+'ᵉ</b>'}</span>
     <span class="teamdot" style="background:${t.color}"></span><b class="grow" style="font-size:18px">${esc(t.name)}${S.mistigri.holder===t.id?' 🃏':''}</b>
     <span style="font-size:24px;font-weight:900">${sc.total} pts</span></div>
-    <div class="hint">${sc.validated.size} balises = ${sc.base} pts · doubles +${sc.doubles}${sc.arrival?' · arrivée +'+sc.arrival:''}${sc.adjust?' · ajust. '+(sc.adjust>0?'+':'')+sc.adjust:''}${sc.mistigri?' · mistigri '+sc.mistigri:''}${sc.late?' · retard '+sc.late:''} · chrono ${chr}${last?' · <b style="color:var(--green)">BRIGADE VERTE 🧹 (nettoyage + rangement)</b>':''}</div></div>`; }).join('')}
+    <div class="hint">${sc.validated.size} balises = ${sc.base} pts · doubles +${sc.doubles}${sc.arrival?' · arrivée +'+sc.arrival:''}${sc.wodTotal?' · épreuves +'+sc.wodTotal:''}${sc.adjust?' · ajust. '+(sc.adjust>0?'+':'')+sc.adjust:''}${sc.mistigri?' · mistigri '+sc.mistigri:''}${sc.late?' · retard '+sc.late:''} · chrono ${chr}${last?' · <b style="color:var(--green)">BRIGADE VERTE 🧹 (nettoyage + rangement)</b>':''}</div></div>`; }).join('')}
   <p class="hint center">Montre cet écran aux équipes — ou lis-le façon Rotenberg, suspense inclus. 🎙️</p></div>`; }
 function orgLb(){
   return `<div class="card"><button class="bigbtn" onclick="podiumMode=true;render()">🏆 Afficher le podium final (plein écran)</button></div>
   <div class="card"><h3>Classement</h3><table class="lb">
-  <tr><th></th><th>Équipe</th><th>Balises</th><th>×2</th><th>Ajust.</th><th>Arriv.</th><th>Retard</th><th style="text-align:right">Total</th></tr>
+  <tr><th></th><th>Équipe</th><th>Balises</th><th>×2</th><th>Ajust.</th><th>Arriv.</th><th>Retard</th><th>WOD</th><th style="text-align:right">Total</th></tr>
   ${S.ranking.map((t,i)=>{ const sc=S.scores[t.id];
     return `<tr><td>${['🥇','🥈','🥉'][i]||i+1+'.'}</td><td><span class="teamdot" style="background:${t.color}"></span>${esc(t.name)}${S.mistigri.holder===t.id?' 🃏':''}<br><span class="hint">${sc.validated.size} balises · ${sc.pending} en attente</span></td>
-    <td>${sc.base}</td><td>${sc.doubles?'+'+sc.doubles:'—'}</td><td>${(sc.adjust||sc.mistigri)?((sc.adjust+sc.mistigri>0?'+':'')+(sc.adjust+sc.mistigri))+(sc.mistigri?'🃏':''):'—'}</td><td>${sc.arrival?'+'+sc.arrival:'—'}</td><td>${sc.late||'—'}</td><td class="pts">${sc.total}</td></tr>`; }).join('')}
+    <td>${sc.base}</td><td>${sc.doubles?'+'+sc.doubles:'—'}</td><td>${(sc.adjust||sc.mistigri)?((sc.adjust+sc.mistigri>0?'+':'')+(sc.adjust+sc.mistigri))+(sc.mistigri?'🃏':''):'—'}</td><td>${sc.arrival?'+'+sc.arrival:'—'}</td><td>${sc.late||'—'}</td><td>${sc.wodTotal?'+'+sc.wodTotal:'—'}</td><td class="pts">${sc.total}</td></tr>`; }).join('')}
   </table>
   <p class="hint">Brigade verte 🧹 = dernière équipe (nettoyage + rangement). 🃏 = porteur du mistigri (malus inclus dans Ajust.).</p></div>
   <div class="card"><h3>🃏 Mistigri & ⭐ Shérifs — arbitrage</h3>
@@ -707,6 +769,13 @@ function orgLb(){
     <label>Motif</label><input id="adjWhy" placeholder="drapeau noir, bonus arrivée, litige…">
     <button class="bigbtn mt" onclick="doAdjust()">Appliquer</button>
     <div class="log mt">${S.adjusts.map(a=>`<div>${esc(team(a.team_id).name)} : ${a.payload.points>0?'+':''}${a.payload.points} — ${esc(a.payload.reason||'')}</div>`).join('')}</div></div>
+  <div class="card"><h3>💪 Épreuves après-midi — résultats & correction</h3>
+    ${S.wodDefs.map(d=>{ const tot=S.wodTotals[d.key]; const ids=Object.keys(tot).sort((a,b)=> d.kind==='chrono'? tot[a]-tot[b] : tot[b]-tot[a]);
+      return `<div class="hint mt"><b>${esc(d.name)}</b> : ${ids.length? ids.map(id=>`${esc(team(id).name)} ${fmtPerf(d,tot[id])} (+${S.scores[id].wodDetail[d.key]||0})`).join(' · ') : 'aucun résultat saisi'}</div>`; }).join('')}
+    <label>Saisir / corriger pour l'équipe :</label>
+    <select id="orgWodSel" onchange="orgWodTeam=this.value;render()">${S.teams.map(t=>`<option value="${t.id}" ${orgWodTeam===t.id?'selected':''}>${esc(t.name)}</option>`).join('')}</select>
+    <div class="mt">${wodForms(orgWodTeam)}</div>
+  </div>
   <div class="card"><h3>🎨 Bonus artistique</h3>
     <p class="hint">Pour l'équipe qui a fait les plus belles photos de la course — à attribuer à l'arrivée, après revue des photos dans Validation.</p>
     <div class="row"><select id="artTeam" class="grow">${S.teams.map(t=>`<option value="${t.id}">${esc(t.name)}</option>`).join('')}</select>
@@ -731,6 +800,7 @@ function orgTeams(){
   <button class="bigbtn secondary" onclick="addTeam()">+ Ajouter une équipe</button>
   <p class="hint">Les modifs partent à tous les téléphones à la synchro.</p></div>`;
 }
+let orgWodTeam = 'T1';
 let teamsDraft = null;
 window.editTeam = (i,k,v)=>{ const teams = JSON.parse(JSON.stringify(S.teams)); teams[i][k]=v; addEvent('config_teams',{payload:{teams}}); };
 window.delTeam = i=>{ if(!confirm('Supprimer cette équipe ?')) return; const teams = JSON.parse(JSON.stringify(S.teams)); teams.splice(i,1); addEvent('config_teams',{payload:{teams}}); };
@@ -745,6 +815,9 @@ function orgSet(){
   <label>Pénalité retard max (plafond)</label><input id="setCap" type="number" value="${s.latePenaltyCap}">
   <label>Bonus ordre d'arrivée (ex : 6,5,4,3,2,1 — vide = aucun)</label><input id="setBonus" value="${esc(''+(s.arrivalBonus||''))}">
   <label>Malus mistigri à l'arrivée (points retirés au porteur)</label><input id="setMistigri" type="number" value="${s.mistigriPenalty!==undefined?s.mistigriPenalty:10}">
+  <label>Épreuve 3 — nom</label><input id="setEp3Name" value="${esc(s.ep3Name||'Épreuve 3')}">
+  <label>Épreuve 3 — type</label><select id="setEp3Kind"><option value="chrono" ${(s.ep3Kind||'chrono')==='chrono'?'selected':''}>Chrono (min:sec, le plus court gagne)</option><option value="reps" ${s.ep3Kind==='reps'?'selected':''}>Répétitions (le plus haut gagne)</option></select>
+  <label>Épreuve 3 — nombre de manches (1 ou 2)</label><input id="setEp3Parts" type="number" min="1" max="2" value="${s.ep3Parts||1}">
   <label><input type="checkbox" id="setShowLb" style="width:auto" ${s.showLb?'checked':''}> Classement visible par les coachs</label>
   <label>Code organisateur</label><input id="setPin" value="${esc(s.pin||ORG_PIN_DEFAULT)}">
   <button class="bigbtn mt" onclick="saveSettings()">Enregistrer</button></div>
@@ -762,6 +835,9 @@ window.saveSettings = ()=>{ addEvent('config_settings',{payload:{
   latePenaltyCap: parseFloat(document.getElementById('setCap').value)||999,
   arrivalBonus: document.getElementById('setBonus').value,
   mistigriPenalty: parseFloat(document.getElementById('setMistigri').value)||0,
+  ep3Name: document.getElementById('setEp3Name').value||'Épreuve 3',
+  ep3Kind: document.getElementById('setEp3Kind').value,
+  ep3Parts: parseInt(document.getElementById('setEp3Parts').value)||1,
   showLb: document.getElementById('setShowLb').checked,
   pin: document.getElementById('setPin').value||ORG_PIN_DEFAULT }}); alert('Réglages enregistrés ✔'); };
 window.doReset = ()=>{ if(!confirm('Effacer toutes les données de course (photos, scores, départs, jeux) sur tous les téléphones ?')) return;
