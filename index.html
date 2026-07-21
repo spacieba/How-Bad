@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#0f1115">
+<title>How Bad Do You Want It — NPNG</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<style>
+:root{
+  --bg:#0f1115; --card:#1a1e26; --card2:#232936; --txt:#f2f4f8; --muted:#8b93a5;
+  --orange:#ff7a1a; --red:#e5484d; --green:#30a46c; --black-b:#6b7280;
+  --ok:#30a46c; --warn:#f5a623; --err:#e5484d; --radius:14px;
+}
+*{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--txt);font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;min-height:100%}
+body{padding-bottom:env(safe-area-inset-bottom)}
+h1,h2,h3{margin:.2em 0}
+button{font-family:inherit;border:none;border-radius:var(--radius);cursor:pointer;font-weight:700}
+.app{max-width:560px;margin:0 auto;padding:12px}
+.topbar{display:flex;align-items:center;gap:10px;padding:8px 4px;position:sticky;top:0;background:var(--bg);z-index:20}
+.topbar .logo{font-weight:900;font-size:14px;letter-spacing:.5px;line-height:1.15}
+.topbar .logo span{color:var(--orange)}
+.spacer{flex:1}
+.syncdot{width:10px;height:10px;border-radius:50%;background:var(--err);display:inline-block}
+.syncdot.on{background:var(--ok)}
+.syncinfo{font-size:11px;color:var(--muted);text-align:right;line-height:1.2}
+.card{background:var(--card);border-radius:var(--radius);padding:14px;margin:10px 0}
+.card h3{font-size:14px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:8px}
+.bigbtn{width:100%;padding:16px;font-size:17px;background:var(--orange);color:#fff;margin:6px 0}
+.bigbtn.secondary{background:var(--card2);color:var(--txt)}
+.bigbtn:disabled{opacity:.45}
+.chrono{font-variant-numeric:tabular-nums;font-size:44px;font-weight:900;text-align:center;letter-spacing:1px}
+.chrono.small{font-size:22px}
+.grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+.bal{aspect-ratio:1;border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-weight:800;font-size:15px;position:relative;color:#fff;border:2px solid transparent}
+.bal small{font-size:9px;font-weight:600;opacity:.85}
+.bal.r{background:#7f1d1d}.bal.v{background:#14532d}.bal.n{background:#1f2430}
+.bal.done{border-color:var(--ok);box-shadow:0 0 0 1px var(--ok)}
+.bal.pend{border-color:var(--warn)}
+.bal.refused{border-color:var(--err)}
+.bal .st{position:absolute;top:2px;right:4px;font-size:10px}
+.badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700}
+.badge.ok{background:rgba(48,164,108,.2);color:var(--ok)}
+.badge.warn{background:rgba(245,166,35,.2);color:var(--warn)}
+.badge.err{background:rgba(229,72,77,.2);color:var(--err)}
+.badge.mut{background:rgba(139,147,165,.2);color:var(--muted)}
+.row{display:flex;align-items:center;gap:10px}
+.row .grow{flex:1}
+input,textarea,select{width:100%;background:var(--card2);border:1px solid #303747;border-radius:10px;color:var(--txt);padding:10px;font-size:15px;font-family:inherit}
+label{font-size:12px;color:var(--muted);display:block;margin:8px 0 3px}
+.tabs{display:flex;gap:4px;margin:8px 0;overflow-x:auto}
+.tabs button{flex:1;padding:10px 6px;background:var(--card);color:var(--muted);font-size:12px;white-space:nowrap}
+.tabs button.active{background:var(--orange);color:#fff}
+.modal{position:fixed;inset:0;background:rgba(5,7,10,.92);z-index:50;display:flex;flex-direction:column;padding:14px;overflow-y:auto}
+.modal img{max-width:100%;border-radius:12px}
+.compare{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.compare figure{margin:0}
+.compare figcaption{font-size:11px;color:var(--muted);text-align:center;padding:4px}
+.compare img{width:100%;border-radius:10px;object-fit:cover}
+.lb{width:100%;border-collapse:collapse}
+.lb td,.lb th{padding:8px 6px;text-align:left;border-bottom:1px solid #2a3040;font-size:14px}
+.lb th{font-size:11px;color:var(--muted);text-transform:uppercase}
+.lb .pts{font-weight:900;font-size:18px;text-align:right}
+.teamdot{width:12px;height:12px;border-radius:50%;display:inline-block;margin-right:6px}
+.hint{font-size:12px;color:var(--muted);line-height:1.4}
+.center{text-align:center}
+.mt{margin-top:10px}
+.golist .row{padding:10px 0;border-bottom:1px solid #2a3040}
+.gobtn{padding:12px 18px;background:var(--green);color:#fff;font-size:15px;border-radius:12px}
+.finbtn{padding:12px 18px;background:var(--card2);color:var(--txt);font-size:15px;border-radius:12px}
+.valbtns{display:flex;gap:8px;margin-top:8px}
+.valbtns button{flex:1;padding:14px;font-size:16px}
+.vok{background:var(--ok);color:#fff}.vno{background:var(--err);color:#fff}
+.banner{background:#3b2f16;color:#f5c76b;border-radius:10px;padding:8px 12px;font-size:12px;margin:8px 0}
+.rolebtn{width:100%;padding:22px;font-size:19px;margin:8px 0;background:var(--card);color:var(--txt);text-align:left}
+.rolebtn b{color:var(--orange)}
+.log{font-size:13px;color:var(--muted);max-height:300px;overflow-y:auto}
+.log div{padding:5px 0;border-bottom:1px solid #232936}
+footer{color:#3a4152;text-align:center;font-size:11px;padding:20px 0}
+</style>
+</head>
+<body>
+<div class="app" id="app"></div>
+<script>
+/* ================= CONFIG ================= */
+const SUPA_URL = 'https://ibcmgfcrkmisljngvmcg.supabase.co';
+const SUPA_KEY = 'sb_publishable_djLTxH4MM9x6yoFtUDuyAw_ON-sQSrc';
+const ONLINE_BACKEND = !SUPA_URL.includes('__');
+const ORG_PIN_DEFAULT = '3838';
+const RED = [7,11,12,21,27,35,41,43];
+const GREEN = [2,3,8,9,10,13,17,23,32,34,36,37,39,44,45,48];
+const N_BAL = 49;
+function balVal(n){ return RED.includes(n)?3:GREEN.includes(n)?2:1; }
+function balCls(n){ return RED.includes(n)?'r':GREEN.includes(n)?'v':'n'; }
+const TEAM_COLORS = ['#ff7a1a','#3b82f6','#22c55e','#eab308','#ec4899','#a855f7','#14b8a6','#f43f5e'];
+const DEFAULT_TEAMS = [
+  {id:'T1', name:'Équipe Sophia',  coach:'Sophia', players:'', color:TEAM_COLORS[0]},
+  {id:'T2', name:'Équipe Mo',     coach:'Mo', players:'', color:TEAM_COLORS[1]},
+  {id:'T3', name:'Équipe Margaux', coach:'Margaux', players:'', color:TEAM_COLORS[2]},
+  {id:'T4', name:'Équipe Romain', coach:'Romain', players:'', color:TEAM_COLORS[3]},
+  {id:'T5', name:'Équipe Max',    coach:'Max (le jeune)', players:'', color:TEAM_COLORS[4]},
+  {id:'T6', name:'Équipe Maxime', coach:'Maxime (prépa physique)', players:'', color:TEAM_COLORS[5]},
+];
+const STAR_HINTS = {17:'Cherchez la SOUCHE…', 41:'Sur un des troncs de l\'angle, sous le chiffre 1.'};
+
+/* ================= IndexedDB ================= */
+let db;
+function idb(){ return new Promise((res,rej)=>{
+  if(db) return res(db);
+  const r = indexedDB.open('vercors', 3);
+  r.onupgradeneeded = e=>{ const d=e.target.result;
+    if(!d.objectStoreNames.contains('events')) d.createObjectStore('events',{keyPath:'id'});
+    if(!d.objectStoreNames.contains('blobs')) d.createObjectStore('blobs');
+    if(!d.objectStoreNames.contains('meta')) d.createObjectStore('meta');
+  };
+  r.onsuccess = ()=>{ db=r.result; res(db); };
+  r.onerror = ()=>rej(r.error);
+});}
+async function idbPut(store, val, key){ const d=await idb(); return new Promise((res,rej)=>{ const t=d.transaction(store,'readwrite'); const q= key!==undefined? t.objectStore(store).put(val,key): t.objectStore(store).put(val); q.onsuccess=()=>res(); q.onerror=()=>rej(q.error); });}
+async function idbGet(store,key){ const d=await idb(); return new Promise((res,rej)=>{ const q=d.transaction(store).objectStore(store).get(key); q.onsuccess=()=>res(q.result); q.onerror=()=>rej(q.error); });}
+async function idbAll(store){ const d=await idb(); return new Promise((res,rej)=>{ const q=d.transaction(store).objectStore(store).getAll(); q.onsuccess=()=>res(q.result); q.onerror=()=>rej(q.error); });}
+async function idbDel(store,key){ const d=await idb(); return new Promise((res)=>{ const q=d.transaction(store,'readwrite').objectStore(store).delete(key); q.onsuccess=()=>res(); q.onerror=()=>res(); });}
+
+/* ================= State ================= */
+let EVENTS = new Map();      // id -> event row {id, device_id, team_id, type, balise, payload, client_ts, synced, uploaded}
+let S = null;                // derived state
+let view = localStorage.getItem('vx_role') || 'role';  // role | coach | org
+let myTeam = localStorage.getItem('vx_team') || null;
+let orgTab = 'go';
+let deviceId = localStorage.getItem('vx_dev'); if(!deviceId){ deviceId = 'dev-'+Math.random().toString(36).slice(2,10); localStorage.setItem('vx_dev',deviceId); }
+let lastSyncAt = null, syncErr = null, pulling=false;
+let camBal = null, camBlob = null, camUrl = null;
+let valFilter='pending';
+
+function uuid(){ return crypto.randomUUID ? crypto.randomUUID() : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{const r=Math.random()*16|0;return (c=='x'?r:(r&0x3|0x8)).toString(16);}); }
+function nowIso(){ return new Date().toISOString(); }
+
+async function loadEvents(){ const rows = await idbAll('events'); EVENTS = new Map(rows.map(r=>[r.id,r])); derive(); }
+
+async function addEvent(type, fields){
+  const ev = { id: uuid(), device_id: deviceId, team_id: fields.team_id||null, type, balise: fields.balise||null,
+    payload: fields.payload||{}, client_ts: nowIso(), synced:false, uploaded: fields.uploaded!==undefined?fields.uploaded:true };
+  EVENTS.set(ev.id, ev); await idbPut('events', ev); derive(); render(); syncSoon();
+  return ev;
+}
+
+function derive(){
+  const evs = [...EVENTS.values()].sort((a,b)=> a.client_ts < b.client_ts ? -1 : 1);
+  const st = { teams: DEFAULT_TEAMS, settings: { pin: ORG_PIN_DEFAULT, deadlineMin: 150, latePenaltyPerMin: 1, latePenaltyCap: 15, arrivalBonus: '', showLb: true, mistigriPenalty: 10 }, starts:{}, finishes:{}, subs:[], vals:{}, adjusts:[], mistigri:{holder:null, hist:[]}, sherif:{counts:{}, log:[]}, lastPos:{}, sos:[], sosAck:new Set() };
+  const shc = id=>{ if(!st.sherif.counts[id]) st.sherif.counts[id]={found:0,used:0}; return st.sherif.counts[id]; };
+  for(const e of evs){
+    if(e.type==='config_teams') st.teams = e.payload.teams;
+    else if(e.type==='config_settings') st.settings = Object.assign({}, st.settings, e.payload);
+    else if(e.type==='start'){ if(e.payload.cancel) delete st.starts[e.team_id]; else st.starts[e.team_id]=e; }
+    else if(e.type==='finish'){ if(e.payload.cancel) delete st.finishes[e.team_id]; else st.finishes[e.team_id]=e; }
+    else if(e.type==='photo_submit') st.subs.push(e);
+    else if(e.type==='validation') st.vals[e.payload.submitId]=e;
+    else if(e.type==='adjust') st.adjusts.push(e);
+    else if(e.type==='mistigri_set'){ st.mistigri.holder = e.payload.holder || null; st.mistigri.hist.push(e); }
+    else if(e.type==='mistigri_pass'){ st.mistigri.holder = e.payload.to; st.mistigri.hist.push(e); }
+    else if(e.type==='sherif_found'){ shc(e.team_id).found++; st.sherif.log.push(e); }
+    else if(e.type==='sherif_use'){ shc(e.team_id).used++; st.sherif.log.push(e); }
+    else if(e.type==='sherif_hit'){ st.sherif.log.push(e); }
+    else if(e.type==='pos'){ if(e.team_id) st.lastPos[e.team_id]=e; }
+    else if(e.type==='sos'){ st.sos.push(e); }
+    else if(e.type==='sos_ack'){ st.sosAck.add(e.payload.sosId); }
+  }
+  // status of each submission
+  st.subStatus = id => st.vals[id] ? (st.vals[id].payload.verdict==='ok'?'ok':'no') : 'pending';
+  // first approved per balise
+  st.firstOf = {};
+  for(const sub of st.subs){ if(st.subStatus(sub.id)!=='ok') continue;
+    const b = sub.balise; if(!st.firstOf[b] || sub.client_ts < st.firstOf[b].client_ts) st.firstOf[b]=sub; }
+  // per-team scores
+  st.scores = {};
+  for(const t of st.teams){
+    const sc = { base:0, doubles:0, validated:new Set(), pending:0, refused:0, adjust:0, arrival:0, late:0, mistigri:0, total:0 };
+    const seen = new Set();
+    for(const sub of st.subs.filter(s=>s.team_id===t.id)){
+      const status = st.subStatus(sub.id);
+      if(status==='ok' && !seen.has(sub.balise)){ seen.add(sub.balise); sc.validated.add(sub.balise);
+        let v = balVal(sub.balise);
+        if(st.firstOf[sub.balise] && st.firstOf[sub.balise].id===sub.id){ sc.doubles += v; }
+        sc.base += v;
+      } else if(status==='pending') sc.pending++;
+      else if(status==='no') sc.refused++;
+    }
+    sc.adjust = st.adjusts.filter(a=>a.team_id===t.id).reduce((s,a)=>s+(a.payload.points||0),0);
+    st.scores[t.id]=sc;
+  }
+  // arrival bonus by finish order
+  const bonuses = (''+(st.settings.arrivalBonus||'')).split(',').map(x=>parseInt(x.trim())).filter(x=>!isNaN(x));
+  const finished = st.teams.filter(t=>st.finishes[t.id]).sort((a,b)=> st.finishes[a.id].client_ts < st.finishes[b.id].client_ts ? -1:1);
+  finished.forEach((t,i)=>{ if(bonuses[i]!==undefined) st.scores[t.id].arrival = bonuses[i]; });
+  // late penalty
+  for(const t of st.teams){ const sc=st.scores[t.id]; const start=st.starts[t.id], fin=st.finishes[t.id];
+    if(start && fin && st.settings.deadlineMin){
+      const mins = (new Date(fin.client_ts)-new Date(start.client_ts))/60000;
+      const late = mins - st.settings.deadlineMin;
+      if(late>0) sc.late = -Math.min(Math.ceil(late)*(st.settings.latePenaltyPerMin||0), st.settings.latePenaltyCap||999);
+    }
+    sc.mistigri = (st.mistigri.holder===t.id) ? -(st.settings.mistigriPenalty!==undefined?st.settings.mistigriPenalty:10) : 0;
+    sc.total = sc.base + sc.doubles + sc.adjust + sc.arrival + sc.late + sc.mistigri;
+  }
+  st.ranking = [...st.teams].sort((a,b)=> st.scores[b.id].total - st.scores[a.id].total);
+  S = st;
+}
+
+/* ================= Sync ================= */
+const H = ()=>({ 'apikey': SUPA_KEY });
+let syncTimer=null, syncBusy=false;
+function syncSoon(){ if(syncTimer) clearTimeout(syncTimer); syncTimer=setTimeout(sync, 400); }
+async function sync(){
+  if(!ONLINE_BACKEND || syncBusy || !navigator.onLine){ render(); return; }
+  syncBusy = true; syncErr=null;
+  try{
+    // 1. upload pending photo blobs
+    for(const e of EVENTS.values()){
+      if(e.type==='photo_submit' && !e.uploaded){
+        const blob = await idbGet('blobs', e.id);
+        if(blob){
+          const r = await fetch(`${SUPA_URL}/storage/v1/object/photos/submissions/${e.id}.jpg`, { method:'POST', headers: Object.assign({'Content-Type':'image/jpeg','x-upsert':'true'}, H()), body: blob });
+          if(!r.ok && r.status!==409) throw new Error('upload '+r.status);
+        }
+        e.uploaded = true; await idbPut('events', e);
+      }
+    }
+    // 2. push unsynced events
+    const unsynced = [...EVENTS.values()].filter(e=>!e.synced && e.uploaded!==false);
+    if(unsynced.length){
+      const body = unsynced.map(e=>({ id:e.id, device_id:e.device_id, team_id:e.team_id, type:e.type, balise:e.balise, payload:e.payload, client_ts:e.client_ts }));
+      const r = await fetch(`${SUPA_URL}/rest/v1/events`, { method:'POST', headers: Object.assign({'Content-Type':'application/json','Prefer':'resolution=ignore-duplicates'}, H()), body: JSON.stringify(body) });
+      if(!r.ok) throw new Error('push '+r.status);
+      for(const e of unsynced){ e.synced=true; await idbPut('events', e); }
+    }
+    // 3. pull
+    const cursor = (await idbGet('meta','cursor')) || '1970-01-01T00:00:00Z';
+    const r2 = await fetch(`${SUPA_URL}/rest/v1/events?created_at=gte.${encodeURIComponent(cursor)}&order=created_at.asc&limit=2000`, { headers: H() });
+    if(!r2.ok) throw new Error('pull '+r2.status);
+    const rows = await r2.json();
+    let maxCa = cursor, changed=false;
+    for(const row of rows){
+      if(row.created_at > maxCa) maxCa = row.created_at;
+      if(!EVENTS.has(row.id)){ const e = { ...row, synced:true, uploaded:true }; EVENTS.set(e.id,e); await idbPut('events', e); changed=true; }
+      else { const e = EVENTS.get(row.id); if(!e.synced){ e.synced=true; await idbPut('events',e);} }
+    }
+    await idbPut('meta', maxCa, 'cursor');
+    lastSyncAt = new Date();
+    if(changed) derive();
+  }catch(err){ syncErr = err.message; }
+  syncBusy = false; render();
+}
+setInterval(sync, 15000);
+window.addEventListener('online', sync);
+document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) sync(); });
+
+/* ================= GPS ================= */
+let lastFix = null;
+function recordFix(save){ if(!navigator.geolocation) return;
+  navigator.geolocation.getCurrentPosition(p=>{
+    lastFix = { lat:+p.coords.latitude.toFixed(6), lng:+p.coords.longitude.toFixed(6), acc:Math.round(p.coords.accuracy), t:Date.now() };
+    if(save && view==='coach' && myTeam) addEvent('pos',{team_id:myTeam, payload:{lat:lastFix.lat, lng:lastFix.lng, acc:lastFix.acc}});
+  }, ()=>{}, {enableHighAccuracy:true, timeout:25000, maximumAge:90000});
+}
+setInterval(()=>recordFix(true), 150000);
+function mapsLink(g){ return `https://maps.google.com/?q=${g.lat},${g.lng}`; }
+
+/* ================= Photo helpers ================= */
+function compressImage(file, maxW=1280, q=0.7){
+  return new Promise((res,rej)=>{
+    const img = new Image();
+    img.onload = ()=>{
+      const scale = Math.min(1, maxW/Math.max(img.width,img.height));
+      const c = document.createElement('canvas');
+      c.width = Math.round(img.width*scale); c.height = Math.round(img.height*scale);
+      c.getContext('2d').drawImage(img,0,0,c.width,c.height);
+      c.toBlob(b=> b?res(b):rej(new Error('blob')), 'image/jpeg', q);
+      URL.revokeObjectURL(img.src);
+    };
+    img.onerror = rej;
+    img.src = URL.createObjectURL(file);
+  });
+}
+function originalUrl(n){ return `originals/${n}.jpg`; }
+function submissionUrl(e){ return ONLINE_BACKEND ? `${SUPA_URL}/storage/v1/object/public/photos/submissions/${e.id}.jpg` : ''; }
+async function subImgSrc(e){ const blob = await idbGet('blobs', e.id); return blob ? URL.createObjectURL(blob) : submissionUrl(e); }
+
+/* ================= Utils ================= */
+function fmtDur(ms){ if(ms<0) ms=0; const s=Math.floor(ms/1000); const h=Math.floor(s/3600), m=Math.floor((s%3600)/60), ss=s%60;
+  return (h?String(h).padStart(2,'0')+':':'')+String(m).padStart(2,'0')+':'+String(ss).padStart(2,'0'); }
+function fmtTime(iso){ return new Date(iso).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit',second:'2-digit'}); }
+function esc(s){ return (s||'').replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function team(id){ return S.teams.find(t=>t.id===id) || {name:id,color:'#888'}; }
+function h(html){ const d=document.createElement('div'); d.innerHTML=html; return d; }
+
+/* ================= Render ================= */
+const app = document.getElementById('app');
+function render(){
+  if(!S) return;
+  if(view==='role') return renderRole();
+  if(view==='coach') return renderCoach();
+  if(view==='org') return renderOrg();
+}
+function topbar(sub){
+  const pend = [...EVENTS.values()].filter(e=>!e.synced).length;
+  return `<div class="topbar">
+    <div class="logo">HOW BAD<br><span>DO YOU WANT IT</span></div><div class="spacer"></div>
+    <div class="syncinfo">${ONLINE_BACKEND?'':'⚠︎ mode démo local<br>'}${pend?`<span class="badge warn">${pend} à synchro</span>`:`<span class="badge ok">synchro OK</span>`}<br>${lastSyncAt?('maj '+lastSyncAt.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})):'jamais synchronisé'}${syncErr?'<br>⚠︎ '+esc(syncErr):''}</div>
+    <span class="syncdot ${navigator.onLine?'on':''}"></span>
+  </div>${sub||''}`;
+}
+
+/* ---- Role selection ---- */
+function renderRole(){
+  app.innerHTML = topbar() + `
+  <div class="card center"><h2>🏔️ How Bad<br>Do You Want It</h2>
+  <p class="hint">Course d'orientation · Bois des Vouillants<br>Camp 38 — No Pain No Gain · mercredi 22 juillet</p></div>
+  ${S.teams.map(t=>`<button class="rolebtn" onclick="pickTeam('${t.id}')"><span class="teamdot" style="background:${t.color}"></span> Coach — <b>${esc(t.name)}</b>${t.coach?' <span class="hint">('+esc(t.coach)+')</span>':''}</button>`).join('')}
+  <button class="rolebtn" onclick="pickOrg()">🎙️ <b>Organisateur</b> — Dam</button>
+  <footer>NPNG · fonctionne hors-ligne une fois installée</footer>`;
+}
+window.pickTeam = id=>{ myTeam=id; localStorage.setItem('vx_team',id); view='coach'; localStorage.setItem('vx_role','coach'); recordFix(false); render(); };
+window.pickOrg = ()=>{ const pin = prompt('Code organisateur :'); if(pin === (S.settings.pin||ORG_PIN_DEFAULT)){ view='org'; localStorage.setItem('vx_role','org'); render(); } else alert('Mauvais code'); };
+window.logout = ()=>{ view='role'; localStorage.setItem('vx_role','role'); render(); };
+
+/* ---- Coach view ---- */
+function renderCoach(){
+  const t = team(myTeam); const sc = S.scores[myTeam] || {base:0,doubles:0,pending:0,total:0,validated:new Set(),adjust:0,arrival:0,late:0};
+  const start = S.starts[myTeam], fin = S.finishes[myTeam];
+  const chrono = start ? (fin ? fmtDur(new Date(fin.client_ts)-new Date(start.client_ts)) : fmtDur(Date.now()-new Date(start.client_ts))) : '—:—';
+  const mySubs = S.subs.filter(s=>s.team_id===myTeam).sort((a,b)=> a.client_ts<b.client_ts?1:-1);
+  const balState = n=>{
+    const subs = mySubs.filter(s=>s.balise===n);
+    if(subs.some(s=>S.subStatus(s.id)==='ok')) return 'done';
+    if(subs.some(s=>S.subStatus(s.id)==='pending')) return 'pend';
+    if(subs.length) return 'refused'; return '';
+  };
+  app.innerHTML = topbar() + `
+  <div class="card">
+    <div class="row"><span class="teamdot" style="background:${t.color}"></span><h2 class="grow">${esc(t.name)}</h2>
+    <button class="badge mut" style="border:none" onclick="logout()">changer</button></div>
+    <div class="chrono" id="chr">${chrono}</div>
+    <div class="center hint">${start? (fin?'🏁 Arrivée validée':'Départ '+fmtTime(start.client_ts)) : 'En attente du départ…'}</div>
+    <div class="center mt" id="deadline" style="font-weight:800;font-size:15px"></div>
+    ${!start?`<button class="bigbtn secondary" onclick="coachStart()">🚦 Top départ donné par Dam (secours hors-ligne)</button>`:''}
+    <div class="row mt"><button class="bigbtn" style="background:var(--err);margin:0;flex:1" onclick="sosOpen()">🆘 SOS / incident</button>${hasCarte?`<button class="bigbtn secondary" style="margin:0;flex:1" onclick="mapMode=true;render()">🗺️ Carte</button>`:''}</div>
+  </div>
+  <div class="card">
+    <div class="row"><h3 class="grow">Score</h3>
+      <span class="badge ok">${sc.base + sc.doubles} pts validés</span>
+      ${sc.doubles?`<span class="badge warn">dont +${sc.doubles} premiers passages</span>`:''}
+      ${sc.pending?`<span class="badge warn">${sc.pending} en attente</span>`:''}</div>
+    ${S.settings.showLb ? renderMiniLb() : '<p class="hint">Classement secret jusqu\'à l\'arrivée 🤫</p>'}
+  </div>
+  <div class="card">
+    <h3>🃏 Mistigri & ⭐ Shérifs</h3>
+    ${S.mistigri.holder===myTeam
+      ? `<div class="banner">🃏 <b>VOUS AVEZ LE MISTIGRI !</b> ${-(S.settings.mistigriPenalty!==undefined?S.settings.mistigriPenalty:10)} pts si vous l'avez encore à l'arrivée. Il se refile en MAIN PROPRE à une équipe croisée — interdit de le cacher.</div>
+         <button class="bigbtn" onclick="mistigriPass()">🃏 On l'a refilé à…</button>`
+      : `<div class="hint">Mistigri chez : <b>${S.mistigri.holder?esc(team(S.mistigri.holder).name):'pas encore attribué'}</b> (à la dernière synchro)</div>`}
+    <div class="hint mt">⭐ Étoiles shérif en votre possession : <b>${(S.sherif.counts[myTeam]?(S.sherif.counts[myTeam].found-S.sherif.counts[myTeam].used):0)}</b> — chaque étoile = 1 flag (5 min d'arrêt pour l'équipe visée), puis remise à Dam à l'arrivée.</div>
+    <button class="bigbtn secondary" onclick="sherifFound()">⭐ On a trouvé une étoile !</button>
+    ${(S.sherif.counts[myTeam]&&(S.sherif.counts[myTeam].found-S.sherif.counts[myTeam].used)>0)?`<button class="bigbtn" onclick="sherifUse()">⭐ Dégainer le shérif contre…</button>`:''}
+    <button class="bigbtn secondary" onclick="sherifHit()">🚨 On est flagués → lancer les 5 min</button>
+  </div>
+  <div class="card">
+    <h3>Balises — appuie pour photographier</h3>
+    <div class="hint">🔴 3 pts · 🟢 2 pts · ⚫ 1 pt — TOUT le groupe sur la photo !</div>
+    <div class="grid mt">${Array.from({length:N_BAL},(_,i)=>i+1).map(n=>`
+      <div class="bal ${balCls(n)} ${balState(n)}" onclick="openCam(${n})">${n}<small>${balVal(n)} pt${balVal(n)>1?'s':''}</small>
+      <span class="st">${balState(n)==='done'?'✓':balState(n)==='pend'?'⏳':balState(n)==='refused'?'✗':''}</span></div>`).join('')}
+    </div>
+  </div>
+  <div class="card"><h3>Mes envois</h3><div class="log">${mySubs.map(s=>`<div>Balise <b>${s.balise}</b> · ${fmtTime(s.client_ts)} · ${{ok:'<span class="badge ok">validée</span>',no:'<span class="badge err">refusée — réessayez !</span>',pending:'<span class="badge warn">en attente Dam</span>'}[S.subStatus(s.id)]}</div>`).join('')||'<div>Aucun envoi pour l\'instant</div>'}</div></div>
+  <button class="bigbtn secondary" onclick="sync()">🔄 Forcer la synchro</button>
+  <footer>Les envois partent automatiquement dès qu'il y a du réseau.</footer>
+  ${camModal()}${teamPickModal()}${sherifOverlay()}${starModal()}${sosModal()}${mapModal()}`;
+  attachCam();
+  updDeadline();
+}
+/* ---- Compte à rebours temps imparti ---- */
+function updDeadline(){ const el = document.getElementById('deadline'); if(!el || !S) return;
+  const start = S.starts[myTeam];
+  if(!start || !S.settings.deadlineMin || S.finishes[myTeam]){ el.textContent=''; return; }
+  const left = new Date(start.client_ts).getTime() + S.settings.deadlineMin*60000 - Date.now();
+  if(left > 30*60000){ el.style.color='var(--ok)'; el.textContent = '⏳ Temps restant : '+fmtDur(left); }
+  else if(left > 10*60000){ el.style.color='var(--warn)'; el.textContent = '⏳ Temps restant : '+fmtDur(left)+' — pensez au retour !'; }
+  else if(left > 0){ el.style.color='var(--err)'; el.textContent = '⚠️ PLUS QUE '+fmtDur(left)+' — RENTREZ !'; }
+  else { const lateMin = Math.ceil(-left/60000);
+    const pen = Math.min(lateMin*(S.settings.latePenaltyPerMin||0), S.settings.latePenaltyCap||999);
+    el.style.color='var(--err)'; el.textContent = '🔴 EN RETARD de '+fmtDur(-left)+' → −'+pen+' pts'; }
+}
+/* ---- SOS ---- */
+let sosMode = false;
+function sosModal(){ if(!sosMode) return '';
+  return `<div class="modal"><h2>🆘 SOS / Incident</h2>
+  <p class="hint">Blessure, malaise, groupe perdu… Décris en quelques mots :</p>
+  <textarea id="sosMsg" rows="3" placeholder="Ex : entorse cheville balise 23, on redescend doucement"></textarea>
+  <button class="bigbtn" style="background:var(--err)" onclick="sosSend()">🆘 ENVOYER LE SOS</button>
+  <button class="bigbtn secondary" onclick="sosMode=false;render()">Annuler</button>
+  <p class="hint">Le SOS part (avec ta position GPS) dès la première barre de réseau et s'affiche en rouge chez Dam. En parallèle, APPELLE Dam : un appel passe parfois là où la data ne passe pas.</p></div>`; }
+window.sosOpen = ()=>{ sosMode=true; recordFix(false); render(); };
+window.sosSend = ()=>{ const msg = document.getElementById('sosMsg').value.trim(); if(!msg) return alert('Décris l\'incident en quelques mots');
+  addEvent('sos',{team_id:myTeam, payload:{msg, gps:lastFix}}); sosMode=false; render();
+  alert('SOS enregistré — il partira à la première barre de réseau. Appelle aussi Dam directement !'); };
+/* ---- Révélation étoile ---- */
+let starReveal = null;
+function starModal(){ if(!starReveal) return '';
+  return `<div class="modal center"><h1 style="margin-top:14vh">⭐ SURPRISE ! ⭐</h1>
+  <h2>BALISE SPÉCIALE SHÉRIF</h2>
+  <p style="font-size:17px">Une <b>étoile de shérif</b> est cachée sur cette balise !</p>
+  <div class="banner" style="font-size:16px">Indice : <b>${esc(STAR_HINTS[starReveal]||'')}</b></div>
+  <p class="hint">Premier arrivé, premier servi — si elle n'y est plus, une équipe est passée avant vous. Une fois en main : bouton « ⭐ On a trouvé une étoile ! »</p>
+  <button class="bigbtn" onclick="starReveal=null;render()">🤠 On la cherche !</button></div>`; }
+/* ---- Carte ---- */
+let hasCarte = false, mapMode = false, mapZoom = 1;
+fetch('carte.jpg', {method:'HEAD'}).then(r=>{ if(r.ok){ hasCarte = true; if(S) render(); } }).catch(()=>{});
+function mapModal(){ if(!mapMode) return '';
+  const sc = S.scores[myTeam];
+  const done = sc ? [...sc.validated].sort((a,b)=>a-b).join(', ') : '';
+  const pend = S.subs.filter(s=>s.team_id===myTeam && S.subStatus(s.id)==='pending').map(s=>s.balise).join(', ');
+  return `<div class="modal" style="padding:8px">
+  <div class="row"><b class="grow">🗺️ Carte des Vouillants</b>
+   <button class="badge mut" style="border:none;font-size:15px" onclick="mapZoom=Math.max(1,mapZoom-0.5);render()">−</button>
+   <button class="badge mut" style="border:none;font-size:15px" onclick="mapZoom=Math.min(4,mapZoom+0.5);render()">+</button>
+   <button class="badge mut" style="border:none;font-size:15px" onclick="mapMode=false;render()">✕ fermer</button></div>
+  <div class="hint">✅ Validées : ${done||'aucune'} · ⏳ En attente : ${pend||'aucune'}</div>
+  <div style="overflow:auto;flex:1;margin-top:6px"><img src="carte.jpg" style="max-width:none;width:${mapZoom*100}%"></div></div>`; }
+/* ---- Jeux : mistigri & shérifs ---- */
+let teamPick = null;
+function teamPickModal(){ if(!teamPick) return '';
+  return `<div class="modal"><h2>${teamPick.title}</h2>
+  ${S.teams.filter(t=>t.id!==myTeam).map(t=>`<button class="rolebtn" onclick="teamPickGo('${t.id}')"><span class="teamdot" style="background:${t.color}"></span> ${esc(t.name)}</button>`).join('')}
+  <button class="bigbtn secondary" onclick="teamPick=null;render()">Annuler</button></div>`; }
+window.teamPickGo = id=>{ const cb = teamPick.cb; teamPick=null; cb(id); };
+window.mistigriPass = ()=>{ teamPick = { title:'🃏 Mistigri refilé à qui ?', cb: to=>{ addEvent('mistigri_pass',{team_id:myTeam, payload:{from:myTeam, to}}); } }; render(); };
+window.sherifFound = ()=>{ const b = parseInt(prompt('⭐ Numéro de la balise où vous avez trouvé l\'étoile :')); if(b>=1&&b<=N_BAL) addEvent('sherif_found',{team_id:myTeam, balise:b}); else if(!isNaN(b)) alert('Numéro entre 1 et 49'); };
+window.sherifUse = ()=>{ teamPick = { title:'⭐ Dégainer le shérif contre qui ? (usage unique)', cb: v=>{ addEvent('sherif_use',{team_id:myTeam, payload:{victim:v}}); alert('Flag déclaré ! L\'équipe visée lance ses 5 min sur SON téléphone. Étoile à remettre à Dam à l\'arrivée.'); } }; render(); };
+window.sherifHit = ()=>{ if(!confirm('Lancer les 5 minutes d\'arrêt shérif ? (gainage ou squats, le chrono de course continue)')) return;
+  const until = Date.now()+5*60*1000; localStorage.setItem('vx_sherif_until', until);
+  addEvent('sherif_hit',{team_id:myTeam, payload:{until:new Date(until).toISOString()}}); render(); };
+function sherifOverlay(){ const until = parseInt(localStorage.getItem('vx_sherif_until')||'0'); if(!until) return '';
+  const left = until - Date.now();
+  if(left <= 0) return `<div class="modal center"><h1 style="margin-top:30vh">✅ 5 MIN PURGÉES</h1><h2>FONCEZ !</h2><button class="bigbtn" onclick="localStorage.removeItem('vx_sherif_until');render()">Reprendre la course</button></div>`;
+  return `<div class="modal center"><h1 style="margin-top:20vh">🚨 FLAG SHÉRIF 🚨</h1><p class="hint">Toute l'équipe en gainage ou squats jusqu'à la fin. Le chrono de course continue…</p><div class="chrono" id="sherifChr" style="font-size:72px">${fmtDur(left)}</div></div>`; }
+function renderMiniLb(){
+  return `<table class="lb">${S.ranking.map((t,i)=>`<tr><td>${i+1}.</td><td><span class="teamdot" style="background:${t.color}"></span>${esc(t.name)}</td><td class="pts">${S.scores[t.id].total}</td></tr>`).join('')}</table>
+  <div class="hint">Classement à la dernière synchro — peut bouger !</div>`;
+}
+window.coachStart = ()=>{ if(confirm('Confirmer : Dam a donné le départ ? (n\'utiliser que si son téléphone n\'a pas pu synchroniser)')) addEvent('start',{team_id:myTeam, payload:{by:'coach'}}); };
+
+/* ---- Camera modal ---- */
+function camModal(){
+  if(camBal===null) return '';
+  return `<div class="modal">
+    <div class="row"><h2 class="grow">Balise ${camBal} <span class="badge ${balCls(camBal)==='r'?'err':balCls(camBal)==='v'?'ok':'mut'}">${balVal(camBal)} pt${balVal(camBal)>1?'s':''}</span></h2>
+    <button class="badge mut" style="border:none;font-size:16px" onclick="closeCam()">✕ fermer</button></div>
+    <p class="hint">Tout le groupe sur la photo (le coach photographie). L'heure de la photo fait foi pour le premier passage.</p>
+    ${camUrl?`<img src="${camUrl}">`:''}
+    <input type="file" accept="image/*" capture="environment" id="camInput" style="display:none">
+    <button class="bigbtn ${camUrl?'secondary':''}" onclick="document.getElementById('camInput').click()">📷 ${camUrl?'Reprendre la photo':'Prendre la photo'}</button>
+    ${camUrl?`<button class="bigbtn" onclick="sendPhoto()">🚀 Envoyer la balise ${camBal}</button>`:''}
+  </div>`;
+}
+window.openCam = n=>{ camBal=n; camBlob=null; camUrl=null; render(); };
+window.closeCam = ()=>{ camBal=null; camBlob=null; if(camUrl) URL.revokeObjectURL(camUrl); camUrl=null; render(); };
+function attachCam(){
+  const inp = document.getElementById('camInput');
+  if(inp) inp.onchange = async e=>{
+    const f = e.target.files[0]; if(!f) return;
+    camBlob = await compressImage(f);
+    if(camUrl) URL.revokeObjectURL(camUrl);
+    camUrl = URL.createObjectURL(camBlob);
+    render();
+  };
+}
+window.sendPhoto = async ()=>{
+  if(!camBlob) return;
+  const bal = camBal;
+  const ev = { id: uuid(), device_id: deviceId, team_id: myTeam, type:'photo_submit', balise: bal, payload:{gps:lastFix}, client_ts: nowIso(), synced:false, uploaded:false };
+  await idbPut('blobs', camBlob, ev.id);
+  EVENTS.set(ev.id, ev); await idbPut('events', ev);
+  camBal=null; camBlob=null; if(camUrl) URL.revokeObjectURL(camUrl); camUrl=null;
+  if(STAR_HINTS[bal] && !localStorage.getItem('vx_star_seen_'+bal)){ localStorage.setItem('vx_star_seen_'+bal,'1'); starReveal = bal; }
+  recordFix(false);
+  derive(); render(); syncSoon();
+};
+
+/* ---- Organizer view ---- */
+function renderOrg(){
+  const tabs = [['go','🚦 Départs'],['val','✅ Validation'],['lb','🏆 Classement'],['teams','👥 Équipes'],['set','⚙️ Réglages']];
+  const pendCount = S.subs.filter(s=>S.subStatus(s.id)==='pending').length;
+  const sosOpenList = S.sos.filter(e=>!S.sosAck.has(e.id));
+  const sosBanner = sosOpenList.length ? `<div class="card" style="background:#3d1215;border:2px solid var(--err)"><h3 style="color:var(--err)">🆘 SOS EN COURS</h3>${sosOpenList.map(e=>`
+    <div class="row" style="padding:6px 0"><div class="grow"><b>${esc(team(e.team_id).name)}</b> · ${fmtTime(e.client_ts)}<br>${esc(e.payload.msg||'')}<br>${e.payload.gps?`<a style="color:var(--warn)" href="${mapsLink(e.payload.gps)}" target="_blank">📍 position (±${e.payload.gps.acc}m)</a>`:'<span class="hint">pas de position</span>'}</div>
+    <button class="finbtn" onclick="sosAck('${e.id}')">✔ Pris en compte</button></div>`).join('')}</div>` : '';
+  app.innerHTML = topbar(`<div class="tabs">${tabs.map(([k,l])=>`<button class="${orgTab===k?'active':''}" onclick="setTab('${k}')">${l}${k==='val'&&pendCount?' ('+pendCount+')':''}</button>`).join('')}</div>`)
+    + sosBanner
+    + (orgTab==='go'?orgGo():orgTab==='val'?orgVal():orgTab==='lb'?orgLb():orgTab==='teams'?orgTeams():orgSet())
+    + `<button class="bigbtn secondary" onclick="sync()">🔄 Forcer la synchro</button><button class="bigbtn secondary" onclick="logout()">↩︎ Écran d'accueil</button>`;
+  if(orgTab==='val') hydrateValImgs();
+}
+window.setTab = k=>{ orgTab=k; render(); };
+window.sosAck = id=>{ addEvent('sos_ack',{payload:{sosId:id}}); };
+
+function orgGo(){
+  return `<div class="card"><h3>Départs décalés (1 min d'intervalle)</h3><div class="golist">` +
+  S.teams.map(t=>{ const st=S.starts[t.id], fin=S.finishes[t.id];
+    return `<div class="row"><span class="teamdot" style="background:${t.color}"></span><div class="grow"><b>${esc(t.name)}</b><br>
+    <span class="hint">${st?('départ '+fmtTime(st.client_ts)+(st.payload.by==='coach'?' (par coach)':'')):'pas parti'}${fin?' · 🏁 '+fmtTime(fin.client_ts):''}${S.lastPos[t.id]?` · <a style="color:var(--muted)" href="${mapsLink(S.lastPos[t.id].payload)}" target="_blank">📍 ${fmtTime(S.lastPos[t.id].client_ts)}</a>`:''}</span>
+    ${st&&!fin?`<div class="chrono small" data-start="${st.client_ts}">${fmtDur(Date.now()-new Date(st.client_ts))}</div>`:''}
+    ${st&&fin?`<div class="chrono small">${fmtDur(new Date(fin.client_ts)-new Date(st.client_ts))}</div>`:''}</div>
+    ${!st?`<button class="gobtn" onclick="go('${t.id}')">GO !</button>`
+      : !fin?`<button class="finbtn" onclick="finish('${t.id}')">🏁 Arrivée</button>`
+      : `<button class="finbtn" onclick="unfinish('${t.id}')">annuler 🏁</button>`}
+    ${st&&!fin?`<button class="finbtn" onclick="ungo('${t.id}')">✕</button>`:''}</div>`; }).join('')
+  + `</div><p class="hint mt">GO horodate le départ de l'équipe — le chrono de son coach démarre à la synchro (ou via son bouton de secours). ✕ annule un départ raté.</p></div>`;
+}
+window.go = id=>{ addEvent('start',{team_id:id, payload:{by:'org'}}); };
+window.ungo = id=>{ if(confirm('Annuler le départ ?')) addEvent('start',{team_id:id, payload:{cancel:true, by:'org'}}); };
+window.finish = id=>{ addEvent('finish',{team_id:id, payload:{by:'org'}}); };
+window.unfinish = id=>{ addEvent('finish',{team_id:id, payload:{cancel:true, by:'org'}}); };
+
+function orgVal(){
+  const items = S.subs.filter(s=> valFilter==='all' || S.subStatus(s.id)===valFilter).sort((a,b)=> a.client_ts<b.client_ts?-1:1);
+  return `<div class="card"><div class="row"><h3 class="grow">Validation photos</h3>
+  <select style="width:auto" onchange="valFilter=this.value;render()">
+    <option value="pending" ${valFilter==='pending'?'selected':''}>En attente</option>
+    <option value="all" ${valFilter==='all'?'selected':''}>Toutes</option></select></div>
+  ${items.length? items.map(sub=>{
+    const t = team(sub.team_id); const status = S.subStatus(sub.id);
+    const isFirst = S.firstOf[sub.balise] && S.firstOf[sub.balise].id===sub.id;
+    return `<div class="card" style="background:var(--card2)">
+    <div class="row"><span class="teamdot" style="background:${t.color}"></span><b class="grow">${esc(t.name)} — balise ${sub.balise} (${balVal(sub.balise)} pt${balVal(sub.balise)>1?'s':''})</b>
+    <span class="hint">${fmtTime(sub.client_ts)}</span></div>
+    <div class="compare mt">
+      <figure><img loading="lazy" src="${originalUrl(sub.balise)}" onerror="this.style.opacity=.2"><figcaption>Ta photo (balise ${sub.balise})</figcaption></figure>
+      <figure><img loading="lazy" data-subimg="${sub.id}"><figcaption>Photo de l'équipe</figcaption></figure>
+    </div>
+    ${sub.payload.gps?`<div class="hint mt">📍 <a style="color:var(--muted)" href="${mapsLink(sub.payload.gps)}" target="_blank">position au moment de la photo (±${sub.payload.gps.acc}m)</a></div>`:''}
+    ${status==='pending'?`<div class="valbtns"><button class="vok" onclick="validate('${sub.id}','ok')">✅ Valider${isFirstPending(sub)?' (1er passage ×2 ?)':''}</button><button class="vno" onclick="validate('${sub.id}','no')">❌ Refuser</button></div>`
+    : `<div class="mt">${status==='ok'?'<span class="badge ok">validée'+(isFirst?' · 1er passage ×2':'')+'</span>':'<span class="badge err">refusée</span>'} <button class="badge mut" style="border:none" onclick="revalidate('${sub.id}')">changer</button></div>`}
+    </div>`; }).join('') : '<p class="hint">Rien à valider pour l\'instant. Les photos arrivent à la synchro.</p>'}</div>`;
+}
+function isFirstPending(sub){ // would this become first approved?
+  return !S.firstOf[sub.balise] || sub.client_ts < S.firstOf[sub.balise].client_ts;
+}
+window.validate = (id, verdict)=>{ addEvent('validation',{payload:{submitId:id, verdict, by:'org'}}); };
+window.revalidate = id=>{ const v = prompt('ok = valider / no = refuser','ok'); if(v==='ok'||v==='no') addEvent('validation',{payload:{submitId:id, verdict:v, by:'org'}}); };
+async function hydrateValImgs(){
+  for(const img of document.querySelectorAll('[data-subimg]')){
+    const id = img.getAttribute('data-subimg'); const e = EVENTS.get(id);
+    if(e) img.src = await subImgSrc(e);
+  }
+}
+
+function orgLb(){
+  return `<div class="card"><h3>Classement</h3><table class="lb">
+  <tr><th></th><th>Équipe</th><th>Balises</th><th>×2</th><th>Ajust.</th><th>Arriv.</th><th>Retard</th><th style="text-align:right">Total</th></tr>
+  ${S.ranking.map((t,i)=>{ const sc=S.scores[t.id];
+    return `<tr><td>${['🥇','🥈','🥉'][i]||i+1+'.'}</td><td><span class="teamdot" style="background:${t.color}"></span>${esc(t.name)}${S.mistigri.holder===t.id?' 🃏':''}<br><span class="hint">${sc.validated.size} balises · ${sc.pending} en attente</span></td>
+    <td>${sc.base}</td><td>${sc.doubles?'+'+sc.doubles:'—'}</td><td>${(sc.adjust||sc.mistigri)?((sc.adjust+sc.mistigri>0?'+':'')+(sc.adjust+sc.mistigri))+(sc.mistigri?'🃏':''):'—'}</td><td>${sc.arrival?'+'+sc.arrival:'—'}</td><td>${sc.late||'—'}</td><td class="pts">${sc.total}</td></tr>`; }).join('')}
+  </table>
+  <p class="hint">Brigade verte 🧹 = dernière équipe (nettoyage + rangement). 🃏 = porteur du mistigri (malus inclus dans Ajust.).</p></div>
+  <div class="card"><h3>🃏 Mistigri & ⭐ Shérifs — arbitrage</h3>
+    <div class="hint">Porteur actuel du mistigri : <b>${S.mistigri.holder?esc(team(S.mistigri.holder).name):'personne'}</b></div>
+    <label>Attribuer / corriger le porteur</label>
+    <select id="mgTeam"><option value="">— personne —</option>${S.teams.map(t=>`<option value="${t.id}">${esc(t.name)}</option>`).join('')}</select>
+    <button class="bigbtn secondary mt" onclick="setMistigri()">Définir le porteur</button>
+    <div class="log mt">
+    ${S.mistigri.hist.slice().reverse().map(e=> e.type==='mistigri_set'
+      ? `<div>${fmtTime(e.client_ts)} · 🃏 Dam → ${e.payload.holder?esc(team(e.payload.holder).name):'personne'}</div>`
+      : `<div>${fmtTime(e.client_ts)} · 🃏 ${esc(team(e.payload.from).name)} → ${esc(team(e.payload.to).name)}</div>`).join('')}
+    ${S.sherif.log.slice().reverse().map(e=> e.type==='sherif_found'
+      ? `<div>${fmtTime(e.client_ts)} · ⭐ ${esc(team(e.team_id).name)} a trouvé une étoile (balise ${e.balise})</div>`
+      : e.type==='sherif_use'
+      ? `<div>${fmtTime(e.client_ts)} · ⭐ ${esc(team(e.team_id).name)} dégaine contre ${esc(team(e.payload.victim).name)}</div>`
+      : `<div>${fmtTime(e.client_ts)} · 🚨 ${esc(team(e.team_id).name)} purge ses 5 min</div>`).join('')}
+    </div></div>
+  <div class="card"><h3>Ajustement manuel (bonus/malus)</h3>
+    <label>Équipe</label><select id="adjTeam">${S.teams.map(t=>`<option value="${t.id}">${esc(t.name)}</option>`).join('')}</select>
+    <label>Points (ex : 5 ou -10)</label><input id="adjPts" type="number" inputmode="numeric">
+    <label>Motif</label><input id="adjWhy" placeholder="drapeau noir, bonus arrivée, litige…">
+    <button class="bigbtn mt" onclick="doAdjust()">Appliquer</button>
+    <div class="log mt">${S.adjusts.map(a=>`<div>${esc(team(a.team_id).name)} : ${a.payload.points>0?'+':''}${a.payload.points} — ${esc(a.payload.reason||'')}</div>`).join('')}</div></div>`;
+}
+window.doAdjust = ()=>{ const pts = parseInt(document.getElementById('adjPts').value); if(isNaN(pts)) return alert('Points ?');
+  addEvent('adjust',{team_id:document.getElementById('adjTeam').value, payload:{points:pts, reason:document.getElementById('adjWhy').value, by:'org'}}); };
+window.setMistigri = ()=>{ addEvent('mistigri_set',{payload:{holder: document.getElementById('mgTeam').value || null, by:'org'}}); };
+
+function orgTeams(){
+  return `<div class="card"><h3>Équipes (${S.teams.length})</h3>
+  ${S.teams.map((t,i)=>`<div class="card" style="background:var(--card2)">
+    <div class="row"><span class="teamdot" style="background:${t.color}"></span>
+    <input value="${esc(t.name)}" onchange="editTeam(${i},'name',this.value)">
+    <button class="badge err" style="border:none" onclick="delTeam(${i})">✕</button></div>
+    <label>Coach</label><input value="${esc(t.coach)}" onchange="editTeam(${i},'coach',this.value)">
+    <label>Joueurs (séparés par des virgules)</label><textarea rows="2" onchange="editTeam(${i},'players',this.value)">${esc(t.players)}</textarea>
+  </div>`).join('')}
+  <button class="bigbtn secondary" onclick="addTeam()">+ Ajouter une équipe</button>
+  <p class="hint">Les modifs partent à tous les téléphones à la synchro.</p></div>`;
+}
+let teamsDraft = null;
+window.editTeam = (i,k,v)=>{ const teams = JSON.parse(JSON.stringify(S.teams)); teams[i][k]=v; addEvent('config_teams',{payload:{teams}}); };
+window.delTeam = i=>{ if(!confirm('Supprimer cette équipe ?')) return; const teams = JSON.parse(JSON.stringify(S.teams)); teams.splice(i,1); addEvent('config_teams',{payload:{teams}}); };
+window.addTeam = ()=>{ const teams = JSON.parse(JSON.stringify(S.teams)); const n=teams.length+1; teams.push({id:'T'+Date.now()%100000, name:'Équipe '+n, coach:'', players:'', color:TEAM_COLORS[(n-1)%TEAM_COLORS.length]}); addEvent('config_teams',{payload:{teams}}); };
+
+function orgSet(){
+  const s = S.settings;
+  return `<div class="card"><h3>Réglages course</h3>
+  <label>Temps imparti (minutes, base du calcul de retard)</label><input id="setDeadline" type="number" value="${s.deadlineMin||''}">
+  <label>Pénalité retard (points par minute entamée)</label><input id="setPerMin" type="number" value="${s.latePenaltyPerMin}">
+  <label>Pénalité retard max (plafond)</label><input id="setCap" type="number" value="${s.latePenaltyCap}">
+  <label>Bonus ordre d'arrivée (ex : 6,5,4,3,2,1 — vide = aucun)</label><input id="setBonus" value="${esc(''+(s.arrivalBonus||''))}">
+  <label>Malus mistigri à l'arrivée (points retirés au porteur)</label><input id="setMistigri" type="number" value="${s.mistigriPenalty!==undefined?s.mistigriPenalty:10}">
+  <label><input type="checkbox" id="setShowLb" style="width:auto" ${s.showLb?'checked':''}> Classement visible par les coachs</label>
+  <label>Code organisateur</label><input id="setPin" value="${esc(s.pin||ORG_PIN_DEFAULT)}">
+  <button class="bigbtn mt" onclick="saveSettings()">Enregistrer</button></div>
+  <div class="card"><h3>Préparation téléphones</h3>
+  <button class="bigbtn secondary" onclick="preloadOriginals(this)">⬇️ Précharger les 49 photos balises (hors-ligne)</button>
+  <p class="hint">À faire sur CHAQUE téléphone en WiFi ce soir : ouvre l'appli, ajoute-la à l'écran d'accueil, choisis le rôle, puis précharge les photos. Ensuite plus besoin de réseau.</p></div>`;
+}
+window.saveSettings = ()=>{ addEvent('config_settings',{payload:{
+  deadlineMin: parseInt(document.getElementById('setDeadline').value)||null,
+  latePenaltyPerMin: parseFloat(document.getElementById('setPerMin').value)||0,
+  latePenaltyCap: parseFloat(document.getElementById('setCap').value)||999,
+  arrivalBonus: document.getElementById('setBonus').value,
+  mistigriPenalty: parseFloat(document.getElementById('setMistigri').value)||0,
+  showLb: document.getElementById('setShowLb').checked,
+  pin: document.getElementById('setPin').value||ORG_PIN_DEFAULT }}); alert('Réglages enregistrés ✔'); };
+window.preloadOriginals = async btn=>{
+  btn.disabled=true; let ok=0;
+  for(let n=1;n<=N_BAL;n++){ try{ const r=await fetch(originalUrl(n)); if(r.ok){ ok++; } }catch(e){}
+    btn.textContent = `⬇️ ${n}/${N_BAL}…`; }
+  btn.textContent = `✔ ${ok}/${N_BAL} photos en cache`; btn.disabled=false;
+};
+
+/* ---- chrono ticker ---- */
+setInterval(()=>{
+  const chr = document.getElementById('chr');
+  if(chr && view==='coach' && S){ const start=S.starts[myTeam], fin=S.finishes[myTeam];
+    if(start && !fin) chr.textContent = fmtDur(Date.now()-new Date(start.client_ts)); }
+  document.querySelectorAll('[data-start]').forEach(el=>{ el.textContent = fmtDur(Date.now()-new Date(el.getAttribute('data-start'))); });
+  const su = parseInt(localStorage.getItem('vx_sherif_until')||'0');
+  if(su && view==='coach'){ const el = document.getElementById('sherifChr'); const left = su - Date.now();
+    if(el && left > 0) el.textContent = fmtDur(left);
+    else if(left <= 0 && el){ if(navigator.vibrate) navigator.vibrate([300,150,300,150,600]); render(); } }
+  if(view==='coach') updDeadline();
+}, 1000);
+
+/* ---- boot ---- */
+if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
+loadEvents().then(()=>{ render(); sync(); });
+</script>
+</body>
+</html>
