@@ -542,7 +542,7 @@ function mapModal(){ if(!mapMode) return '';
   <div class="hint">✅ Validées : ${done||'aucune'} · ⏳ En attente : ${pend||'aucune'}</div>
   <div style="overflow:auto;flex:1;margin-top:6px"><img src="carte.jpg" style="max-width:none;width:${mapZoom*100}%"></div></div>`; }
 /* ---- Épreuves WOD ---- */
-function fmtPerf(d, v){ return d.kind==='chrono' ? Math.floor(v/60)+"'"+String(v%60).padStart(2,'0') : v+' reps'; }
+function fmtPerf(d, v){ return d.kind==='reps' ? v+' reps' : Math.floor(v/60)+"'"+String(v%60).padStart(2,'0'); }
 function wodForms(teamId){
   return S.wodDefs.map(d=>{
     const rec = (S.wod[d.key]||{})[teamId]||{};
@@ -552,7 +552,7 @@ function wodForms(teamId){
     ${tot!==undefined?`<span class="badge mut">${fmtPerf(d,tot)}</span>`:''}${pts?`<span class="badge ok">+${pts} pts</span>`:''}</div>
     ${Array.from({length:d.parts},(_,i)=>i+1).map(p=>{
       const v = rec[p];
-      if(d.kind==='chrono'){ const mm = v!=null?Math.floor(v/60):'', ss = v!=null?v%60:'';
+      if(d.kind!=='reps'){ const mm = v!=null?Math.floor(v/60):'', ss = v!=null?v%60:'';
         return `<div class="row mt"><span class="hint" style="width:76px">${d.partLabel} ${p}</span>
         <input type="number" inputmode="numeric" min="0" placeholder="min" id="w_${d.key}_${p}_m" value="${mm}">
         <input type="number" inputmode="numeric" min="0" max="59" placeholder="sec" id="w_${d.key}_${p}_s" value="${ss}"></div>`; }
@@ -565,7 +565,7 @@ window.wodSave = (key, parts, kind, teamId)=>{
   let saved = 0;
   for(let p=1;p<=parts;p++){
     let v = null;
-    if(kind==='chrono'){ const m = parseInt(document.getElementById(`w_${key}_${p}_m`).value), s = parseInt(document.getElementById(`w_${key}_${p}_s`).value);
+    if(kind!=='reps'){ const m = parseInt(document.getElementById(`w_${key}_${p}_m`).value), s = parseInt(document.getElementById(`w_${key}_${p}_s`).value);
       if(isNaN(m) && isNaN(s)) continue; v = (isNaN(m)?0:m)*60 + (isNaN(s)?0:s); }
     else { const r = parseInt(document.getElementById(`w_${key}_${p}_r`).value); if(isNaN(r)) continue; v = r; }
     addEvent('wod_score',{team_id:teamId, payload:{event:key, part:p, value:v}}); saved++;
@@ -845,7 +845,7 @@ function orgSet(){
   <label>Bonus ordre d'arrivée (ex : 6,5,4,3,2,1 — vide = aucun)</label><input id="setBonus" value="${esc(''+(s.arrivalBonus||''))}">
   <label>Malus mistigri à l'arrivée (points retirés au porteur)</label><input id="setMistigri" type="number" value="${s.mistigriPenalty!==undefined?s.mistigriPenalty:10}">
   <label>Épreuve 3 — nom</label><input id="setEp3Name" value="${esc(s.ep3Name||'Épreuve 3')}">
-  <label>Épreuve 3 — type</label><select id="setEp3Kind"><option value="chrono" ${(s.ep3Kind||'chrono')==='chrono'?'selected':''}>Chrono (min:sec, le plus court gagne)</option><option value="reps" ${s.ep3Kind==='reps'?'selected':''}>Répétitions (le plus haut gagne)</option></select>
+  <label>Épreuve 3 — type</label><select id="setEp3Kind"><option value="chrono" ${(s.ep3Kind||'chrono')==='chrono'?'selected':''}>Chrono (min:sec, le plus COURT gagne)</option><option value="tenue" ${s.ep3Kind==='tenue'?'selected':''}>Temps tenu (min:sec, le plus LONG gagne)</option><option value="reps" ${s.ep3Kind==='reps'?'selected':''}>Répétitions (le plus haut gagne)</option></select>
   <label>Épreuve 3 — nombre de manches (1 ou 2)</label><input id="setEp3Parts" type="number" min="1" max="2" value="${s.ep3Parts||1}">
   <label><input type="checkbox" id="setShowLb" style="width:auto" ${s.showLb?'checked':''}> Classement visible par les coachs</label>
   <label>Code organisateur</label><input id="setPin" value="${esc(s.pin||ORG_PIN_DEFAULT)}">
