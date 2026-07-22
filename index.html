@@ -157,7 +157,7 @@ function derive(){
     Object.keys(localStorage).filter(k=>k.startsWith('vx_star_seen_')).forEach(k=>localStorage.removeItem(k));
     localStorage.removeItem('vx_sherif_until');
   }
-  const st = { teams: DEFAULT_TEAMS, settings: { pin: ORG_PIN_DEFAULT, deadlineMin: 150, minTimeMin: 120, latePenaltyPerMin: 1, latePenaltyCap: 15, arrivalBonus: '', showLb: true, mistigriPenalty: 10 }, starts:{}, finishes:{}, subs:[], vals:{}, adjusts:[], mistigri:{holder:null, hist:[]}, sherif:{counts:{}, log:[]}, lastPos:{}, tracks:{}, sos:[], sosAck:new Set(), hello:{}, wod:{} };
+  const st = { teams: DEFAULT_TEAMS, settings: { pin: ORG_PIN_DEFAULT, deadlineMin: 150, minTimeMin: 120, latePenaltyPerMin: 1, latePenaltyCap: 15, arrivalBonus: '', showLb: true, mistigriPenalty: 10 }, starts:{}, finishes:{}, subs:[], vals:{}, adjusts:[], mistigri:{holder:null, hist:[]}, sherif:{counts:{}, log:[]}, lastPos:{}, tracks:{}, sos:[], sosAck:new Set(), hello:{}, wod:{}, artRates:{} };
   const shc = id=>{ if(!st.sherif.counts[id]) st.sherif.counts[id]={found:0,used:0}; return st.sherif.counts[id]; };
   for(const e of evs){
     if(resetTs && e.client_ts <= resetTs && e.type!=='config_teams' && e.type!=='config_settings') continue;
@@ -179,6 +179,7 @@ function derive(){
     else if(e.type==='sos_ack'){ st.sosAck.add(e.payload.sosId); }
     else if(e.type==='wod_score'){ const k=e.payload.event, p=e.payload.part||1;
       (st.wod[k]=st.wod[k]||{}); (st.wod[k][e.team_id]=st.wod[k][e.team_id]||{}); st.wod[k][e.team_id][p]=e.payload.value; }
+    else if(e.type==='art_rate'){ if(e.payload.stars>0) st.artRates[e.payload.submitId]=e.payload.stars; else delete st.artRates[e.payload.submitId]; }
   }
   // status of each submission
   st.subStatus = id => st.vals[id] ? (st.vals[id].payload.verdict==='ok'?'ok':'no') : 'pending';
@@ -703,6 +704,8 @@ function orgVal(){
       <figure><img loading="lazy" data-subimg="${sub.id}" onclick="imgZoom(this.src)"><figcaption>Photo de l'équipe 🔍</figcaption></figure>
     </div>
     ${sub.payload.gps?`<div class="hint mt">📍 <a style="color:var(--muted)" href="${mapsLink(sub.payload.gps)}" target="_blank">position au moment de la photo (±${sub.payload.gps.acc}m)</a></div>`:''}
+    <div class="row mt"><span class="hint">🎨 Note artistique :</span>${[1,2,3].map(n=>{ const cur=S.artRates[sub.id]||0;
+      return `<button class="badge ${cur>=n?'warn':'mut'}" style="border:none;font-size:17px;padding:4px 12px" onclick="artRate('${sub.id}',${cur===n?0:n})">${cur>=n?'★':'☆'}</button>`; }).join('')}</div>
     ${status==='pending'?`<div class="valbtns"><button class="vok" onclick="validate('${sub.id}','ok')">✅ Valider${isFirstPending(sub)?' (1er passage ×2 ?)':''}</button><button class="vno" onclick="validate('${sub.id}','no')">❌ Refuser</button></div>`
     : `<div class="mt">${status==='ok'?'<span class="badge ok">validée'+(isFirst?' · 1er passage ×2':'')+'</span>':'<span class="badge err">refusée</span>'} <button class="badge mut" style="border:none" onclick="revalidate('${sub.id}')">changer</button></div>`}
     </div>`; }).join('') : '<p class="hint">Rien à valider pour l\'instant. Les photos arrivent à la synchro.</p>'}</div>`;
@@ -711,6 +714,7 @@ function isFirstPending(sub){ // would this become first approved?
   return !S.firstOf[sub.balise] || sub.client_ts < S.firstOf[sub.balise].client_ts;
 }
 window.validate = (id, verdict)=>{ addEvent('validation',{payload:{submitId:id, verdict, by:'org'}}); };
+window.artRate = (id, stars)=>{ addEvent('art_rate',{payload:{submitId:id, stars}}); };
 window.revalidate = id=>{ const v = prompt('ok = valider / no = refuser','ok'); if(v==='ok'||v==='no') addEvent('validation',{payload:{submitId:id, verdict:v, by:'org'}}); };
 async function hydrateValImgs(){
   for(const img of document.querySelectorAll('[data-subimg]')){
@@ -786,6 +790,9 @@ function orgLb(){
   </div>
   <div class="card"><h3>🎨 Bonus artistique</h3>
     <p class="hint">Pour l'équipe qui a fait les plus belles photos de la course — à attribuer à l'arrivée, après revue des photos dans Validation.</p>
+    ${(()=>{ const rec = S.teams.map(t=>{ const rated = S.subs.filter(s=>s.team_id===t.id && S.artRates[s.id]);
+      const tot = rated.reduce((a,s)=>a+S.artRates[s.id],0); return {t, tot, n:rated.length}; }).filter(x=>x.n).sort((a,b)=>b.tot-a.tot || (b.tot/b.n)-(a.tot/a.n));
+      return rec.length? `<div class="hint mt"><b>Tes notes ★ :</b> ${rec.map(x=>`${esc(x.t.name)} <b>${x.tot}★</b> (${x.n} photos, moy ${(x.tot/x.n).toFixed(1)})`).join(' · ')}</div>` : '<div class="hint mt">Aucune photo notée pour l\'instant — note-les avec les ★ dans Validation.</div>'; })()}
     <div class="row"><select id="artTeam" class="grow">${S.teams.map(t=>`<option value="${t.id}">${esc(t.name)}</option>`).join('')}</select>
     <input id="artPts" type="number" value="3" style="width:80px"></div>
     <button class="bigbtn secondary mt" onclick="doArt()">🎨 Attribuer le bonus artistique</button></div>`;
