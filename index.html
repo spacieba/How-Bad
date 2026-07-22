@@ -143,7 +143,7 @@ async function loadEvents(){ const rows = await idbAll('events'); EVENTS = new M
 
 async function addEvent(type, fields){
   const ev = { id: uuid(), device_id: deviceId, team_id: fields.team_id||null, type, balise: fields.balise||null,
-    payload: fields.payload||{}, client_ts: nowIso(), synced:false, uploaded: fields.uploaded!==undefined?fields.uploaded:true };
+    payload: fields.payload||{}, client_ts: fields.client_ts||nowIso(), synced:false, uploaded: fields.uploaded!==undefined?fields.uploaded:true };
   EVENTS.set(ev.id, ev); await idbPut('events', ev); derive(); render(); syncSoon();
   return ev;
 }
@@ -681,9 +681,19 @@ function orgGo(){
 window.go = id=>{ addEvent('start',{team_id:id, payload:{by:'org'}}); };
 window.ungo = id=>{ if(confirm('Annuler le départ ?')) addEvent('start',{team_id:id, payload:{cancel:true, by:'org'}}); };
 window.finish = id=>{ const st = S.starts[id];
-  if(st){ const min = (Date.now()-new Date(st.client_ts))/60000; const minReq = S.settings.minTimeMin||120;
+  const t = prompt(`🏁 ${team(id).name} — heure d'arrivée RÉELLE (ex : 10:33).\nLaisse VIDE si l'arrivée c'est maintenant :`);
+  if(t === null) return; // annulé
+  let ts = null;
+  const m = (t||'').trim().match(/^(\d{1,2})[:hH.](\d{2})$/);
+  if(m){ const d = new Date(); d.setHours(+m[1], +m[2], 0, 0);
+    if(d.getTime() > Date.now()) { alert('Heure dans le futur — corrige.'); return; }
+    ts = d.toISOString(); }
+  else if((t||'').trim() !== ''){ alert('Format non reconnu (attendu HH:MM). Recommence.'); return; }
+  const when = ts ? new Date(ts).getTime() : Date.now();
+  if(st){ const min = (when - new Date(st.client_ts))/60000; const minReq = S.settings.minTimeMin||120;
+    if(min < 0){ alert('Cette heure est AVANT le départ de l\'équipe — corrige.'); return; }
     if(min < minReq && !confirm(`⚠️ ${team(id).name} n'a couru que ${Math.floor(min)} min — minimum ${minReq} min (interdit de rentrer avant). Valider quand même l'arrivée ?`)) return; }
-  addEvent('finish',{team_id:id, payload:{by:'org'}}); };
+  addEvent('finish',{team_id:id, payload:{by:'org', backdated: !!ts}, client_ts: ts||undefined}); };
 window.unfinish = id=>{ addEvent('finish',{team_id:id, payload:{cancel:true, by:'org'}}); };
 
 function orgVal(){
