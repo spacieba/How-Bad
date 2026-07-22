@@ -720,8 +720,12 @@ let traceTeam = null;
 window.traceFor = id=>{ traceTeam=id; render(); };
 function traceModal(){ if(!traceTeam) return ''; const t = team(traceTeam);
   const pts = (S.tracks[traceTeam]||[]).slice().reverse();
+  const chron = pts.slice().reverse(); // ordre chronologique pour le tracé
+  const way = chron.filter((e,i)=> i % Math.max(1, Math.ceil(chron.length/10)) === 0 || i===chron.length-1).slice(-10);
+  const dirUrl = way.length>=2 ? 'https://www.google.com/maps/dir/' + way.map(e=>e.payload.lat+','+e.payload.lng).join('/') : null;
   return `<div class="modal"><div class="row"><h2 class="grow">📍 Trace — ${esc(t.name)}</h2>
   <button class="badge mut" style="border:none;font-size:16px" onclick="traceTeam=null;render()">✕ fermer</button></div>
+  ${dirUrl?`<a href="${dirUrl}" target="_blank" style="text-decoration:none"><button class="bigbtn">🗺️ Voir le parcours complet sur Google Maps</button></a>`:''}
   <p class="hint">${pts.length} position(s) reçue(s) (~1 toutes les 2 min 30 quand le GPS du coach répond ; remontées à chaque synchro). La plus récente en premier.</p>
   <div class="log">${pts.map(e=>`<div>${fmtTime(e.client_ts)} — <a style="color:var(--orange)" href="${mapsLink(e.payload)}" target="_blank">voir sur Maps</a> (±${e.payload.acc} m)</div>`).join('')||'<div>Aucune position pour cette équipe (permission GPS refusée sur le téléphone du coach ? pas encore synchronisé ?)</div>'}</div></div>`; }
 /* ---- Podium final ---- */
