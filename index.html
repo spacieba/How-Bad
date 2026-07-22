@@ -206,7 +206,7 @@ function derive(){
   }
   // arrival bonus by finish order
   const bonuses = (''+(st.settings.arrivalBonus||'')).split(',').map(x=>parseInt(x.trim())).filter(x=>!isNaN(x));
-  const finished = st.teams.filter(t=>st.finishes[t.id]).sort((a,b)=> st.finishes[a.id].client_ts < st.finishes[b.id].client_ts ? -1:1);
+  const finished = st.teams.filter(t=>st.finishes[t.id]).sort((a,b)=> evTime(st.finishes[a.id]) < evTime(st.finishes[b.id]) ? -1:1);
   finished.forEach((t,i)=>{ if(bonuses[i]!==undefined) st.scores[t.id].arrival = bonuses[i]; });
   // épreuves WOD après-midi
   st.wodDefs = [
@@ -230,7 +230,7 @@ function derive(){
   // late penalty
   for(const t of st.teams){ const sc=st.scores[t.id]; const start=st.starts[t.id], fin=st.finishes[t.id];
     if(start && fin && st.settings.deadlineMin){
-      const mins = (new Date(fin.client_ts)-new Date(start.client_ts))/60000;
+      const mins = (new Date(evTime(fin))-new Date(start.client_ts))/60000;
       const late = mins - st.settings.deadlineMin;
       if(late>0) sc.late = -Math.min(Math.ceil(late)*(st.settings.latePenaltyPerMin||0), st.settings.latePenaltyCap||999);
     }
@@ -324,6 +324,7 @@ async function subImgSrc(e){ const blob = await idbGet('blobs', e.id); return bl
 function fmtDur(ms){ if(ms<0) ms=0; const s=Math.floor(ms/1000); const h=Math.floor(s/3600), m=Math.floor((s%3600)/60), ss=s%60;
   return (h?String(h).padStart(2,'0')+':':'')+String(m).padStart(2,'0')+':'+String(ss).padStart(2,'0'); }
 function fmtTime(iso){ return new Date(iso).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit',second:'2-digit'}); }
+function evTime(e){ return (e && e.payload && e.payload.at) ? e.payload.at : (e ? e.client_ts : null); }
 function esc(s){ return (s||'').replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 function team(id){ return S.teams.find(t=>t.id===id) || {name:id,color:'#888'}; }
 function h(html){ const d=document.createElement('div'); d.innerHTML=html; return d; }
@@ -383,7 +384,7 @@ window.logout = ()=>{ view='role'; localStorage.setItem('vx_role','role'); rende
 function renderCoach(){
   const t = team(myTeam); const sc = S.scores[myTeam] || {base:0,doubles:0,pending:0,total:0,validated:new Set(),adjust:0,arrival:0,late:0};
   const start = S.starts[myTeam], fin = S.finishes[myTeam];
-  const chrono = start ? (fin ? fmtDur(new Date(fin.client_ts)-new Date(start.client_ts)) : fmtDur(Date.now()-new Date(start.client_ts))) : '—:—';
+  const chrono = start ? (fin ? fmtDur(new Date(evTime(fin))-new Date(start.client_ts)) : fmtDur(Date.now()-new Date(start.client_ts))) : '—:—';
   const mySubs = S.subs.filter(s=>s.team_id===myTeam).sort((a,b)=> a.client_ts<b.client_ts?1:-1);
   const balState = n=>{
     const subs = mySubs.filter(s=>s.balise===n);
@@ -668,9 +669,9 @@ function orgGo(){
   S.teams.map(t=>{ const st=S.starts[t.id], fin=S.finishes[t.id];
     return `<div class="row"><span class="teamdot" style="background:${t.color}"></span><div class="grow"><b>${esc(t.name)}</b>
     ${S.hello[t.id]?`<span class="badge ok">📱 appli OK ${fmtTime(S.hello[t.id].client_ts).slice(0,5)}${S.hello[t.id].payload.ua?' · '+esc(S.hello[t.id].payload.ua):''}</span>`:`<span class="badge err">📵 appli pas encore ouverte</span>`}<br>
-    <span class="hint">${st?('départ '+fmtTime(st.client_ts)+(st.payload.by==='coach'?' (par coach)':'')):'pas parti'}${fin?' · 🏁 '+fmtTime(fin.client_ts):''}${S.lastPos[t.id]?` · <a style="color:var(--muted)" href="${mapsLink(S.lastPos[t.id].payload)}" target="_blank">📍 ${fmtTime(S.lastPos[t.id].client_ts)}</a>`:''}</span>
+    <span class="hint">${st?('départ '+fmtTime(st.client_ts)+(st.payload.by==='coach'?' (par coach)':'')):'pas parti'}${fin?' · 🏁 '+fmtTime(evTime(fin)):''}${S.lastPos[t.id]?` · <a style="color:var(--muted)" href="${mapsLink(S.lastPos[t.id].payload)}" target="_blank">📍 ${fmtTime(S.lastPos[t.id].client_ts)}</a>`:''}</span>
     ${st&&!fin?`<div class="chrono small" data-start="${st.client_ts}">${fmtDur(Date.now()-new Date(st.client_ts))}</div>`:''}
-    ${st&&fin?`<div class="chrono small">${fmtDur(new Date(fin.client_ts)-new Date(st.client_ts))}</div>`:''}</div>
+    ${st&&fin?`<div class="chrono small">${fmtDur(new Date(evTime(fin))-new Date(st.client_ts))}</div>`:''}</div>
     ${!st?`<button class="gobtn" onclick="go('${t.id}')">GO !</button>`
       : !fin?`<button class="finbtn" onclick="finish('${t.id}')">🏁 Arrivée</button>`
       : `<button class="finbtn" onclick="unfinish('${t.id}')">annuler 🏁</button>`}
@@ -693,7 +694,7 @@ window.finish = id=>{ const st = S.starts[id];
   if(st){ const min = (when - new Date(st.client_ts))/60000; const minReq = S.settings.minTimeMin||120;
     if(min < 0){ alert('Cette heure est AVANT le départ de l\'équipe — corrige.'); return; }
     if(min < minReq && !confirm(`⚠️ ${team(id).name} n'a couru que ${Math.floor(min)} min — minimum ${minReq} min (interdit de rentrer avant). Valider quand même l'arrivée ?`)) return; }
-  addEvent('finish',{team_id:id, payload:{by:'org', backdated: !!ts}, client_ts: ts||undefined}); };
+  addEvent('finish',{team_id:id, payload:{by:'org', at: ts||undefined}}); };
 window.unfinish = id=>{ addEvent('finish',{team_id:id, payload:{cancel:true, by:'org'}}); };
 
 function orgVal(){
@@ -756,7 +757,7 @@ function podiumModal(){ if(!podiumMode) return '';
   return `<div class="modal"><div class="row"><h1 class="grow center" style="font-size:26px">🏆 CLASSEMENT FINAL</h1>
   <button class="badge mut" style="border:none;font-size:16px" onclick="podiumMode=false;render()">✕</button></div>
   ${S.ranking.map((t,i)=>{ const sc=S.scores[t.id]; const st=S.starts[t.id], fin=S.finishes[t.id];
-    const chr = st&&fin ? fmtDur(new Date(fin.client_ts)-new Date(st.client_ts)) : '—';
+    const chr = st&&fin ? fmtDur(new Date(evTime(fin))-new Date(st.client_ts)) : '—';
     const last = i===n-1;
     return `<div class="card" style="${i===0?'border:2px solid var(--orange);':''}${last?'border:2px solid var(--green);':''}">
     <div class="row"><span style="font-size:28px">${['🥇','🥈','🥉'][i]||'<b>'+(i+1)+'ᵉ</b>'}</span>
