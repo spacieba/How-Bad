@@ -134,7 +134,7 @@ let orgTab = 'go';
 let deviceId = localStorage.getItem('vx_dev'); if(!deviceId){ deviceId = 'dev-'+Math.random().toString(36).slice(2,10); localStorage.setItem('vx_dev',deviceId); }
 let lastSyncAt = null, syncErr = null, pulling=false;
 let camBal = null, camBlob = null, camUrl = null;
-let valFilter='pending';
+let valFilter='pending', valTeam='all';
 
 function uuid(){ return crypto.randomUUID ? crypto.randomUUID() : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{const r=Math.random()*16|0;return (c=='x'?r:(r&0x3|0x8)).toString(16);}); }
 function nowIso(){ return new Date().toISOString(); }
@@ -683,11 +683,15 @@ window.finish = id=>{ const st = S.starts[id];
 window.unfinish = id=>{ addEvent('finish',{team_id:id, payload:{cancel:true, by:'org'}}); };
 
 function orgVal(){
-  const items = S.subs.filter(s=> valFilter==='all' || S.subStatus(s.id)===valFilter).sort((a,b)=> a.client_ts<b.client_ts?-1:1);
+  const items = S.subs.filter(s=> (valFilter==='all' || S.subStatus(s.id)===valFilter) && (valTeam==='all' || s.team_id===valTeam)).sort((a,b)=> a.client_ts<b.client_ts?-1:1);
   return `<div class="card"><div class="row"><h3 class="grow">Validation photos</h3>
   <select style="width:auto" onchange="valFilter=this.value;render()">
     <option value="pending" ${valFilter==='pending'?'selected':''}>En attente</option>
-    <option value="all" ${valFilter==='all'?'selected':''}>Toutes</option></select></div>
+    <option value="all" ${valFilter==='all'?'selected':''}>Toutes</option></select>
+  <select style="width:auto" onchange="valTeam=this.value;render()">
+    <option value="all" ${valTeam==='all'?'selected':''}>Toutes équipes</option>
+    ${S.teams.map(t=>`<option value="${t.id}" ${valTeam===t.id?'selected':''}>${esc(t.name)}</option>`).join('')}</select></div>
+  ${valFilter==='all'?`<p class="hint">🎨 Mode jury artistique : filtre par équipe, fais défiler, appuie sur une photo pour zoomer.</p>`:''}
   ${items.length? items.map(sub=>{
     const t = team(sub.team_id); const status = S.subStatus(sub.id);
     const isFirst = S.firstOf[sub.balise] && S.firstOf[sub.balise].id===sub.id;
